@@ -163,6 +163,42 @@ Supprime aussi `/srv/ia-projets` seulement si tu veux effacer les projets partag
 sudo rm -rf /srv/ia-projets
 ```
 
+## Perte du cache / jetons de session sur Antigravity (reconnexion obligatoire)
+
+### Cause probable
+
+L'application Antigravity utilise un processus d'arrière-plan écrit en Go (`language_server`) qui tente de stocker son jeton d'authentification directement via l'API DBus Secret Service de Linux (l'alias `/org/freedesktop/secrets/aliases/default`).
+
+Dans un environnement isolé (comme cette architecture Distrobox sous l'utilisateur `agent`), l'utilisateur `agent` n'a pas de session graphique physique et son mot de passe est verrouillé. Par conséquent, aucun trousseau de clés (`login.keyring`) n'a été créé par défaut. Le serveur de langage échoue donc à déverrouiller et à utiliser la collection par défaut (erreur `failed to unlock correct collection` dans les logs `language_server.log`), ce qui empêche la persistance de la session.
+
+### Correction
+
+Il faut initialiser un trousseau de clés par défaut (`login.keyring`) persistant et non verrouillé (sans mot de passe) pour l'utilisateur `agent`.
+
+1. **Installer gnome-keyring** dans le conteneur Distrobox :
+   ```bash
+   sudo pacman -S --needed gnome-keyring
+   ```
+
+2. **Créer manuellement le trousseau de clés par défaut** :
+   Créez le fichier `/home/agent/.local/share/keyrings/login.keyring` avec le contenu suivant pour désactiver le verrouillage :
+   ```ini
+   [keyring]
+   display-name=login
+   ctime=0
+   mtime=0
+   lock-on-idle=false
+   lock-after=false
+   ```
+
+3. **Ajuster les permissions** :
+   ```bash
+   chmod 700 /home/agent/.local/share/keyrings
+   chmod 600 /home/agent/.local/share/keyrings/login.keyring
+   ```
+
+4. **Redémarrer le service de trousseau de clés** ou le conteneur. Lors du prochain appel de l'application, le jeton sera persisté dans le trousseau de clés virtuel déverrouillé automatiquement.
+
 ## Quand arrêter de déboguer et passer à une VM
 
 Si tu multiplies les exceptions, montages ou contournements pour faire fonctionner des outils non fiables, l'architecture sort de son cas d'usage. À ce stade, une VM dédiée est plus adaptée.

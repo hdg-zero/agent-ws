@@ -102,3 +102,40 @@ sudo setfacl -d -m m::rwx /srv/ia-projets
 ### Fix
 
 Re-run the setup or adapt the launcher to your preferred terminal emulator.
+
+## Loss of session cache / tokens on Antigravity (forced to log in on every launch)
+
+### Likely cause
+
+The Antigravity application uses a Go-based backend (`language_server`) that attempts to store its authentication tokens directly via the Linux DBus Secret Service API (specifically resolving the `/org/freedesktop/secrets/aliases/default` alias).
+
+In our isolated environment running under the dedicated system user `agent`, there is no active graphical desktop session and the user's password is locked. As a result, no default keyring (`login.keyring`) was initialized. The language server fails to unlock the collection (error `failed to unlock correct collection` in `language_server.log`), preventing the session from being persisted.
+
+### Fix
+
+You need to manually initialize a persistent and unlocked (blank password) `login.keyring` for the `agent` user.
+
+1. **Install gnome-keyring** inside the Distrobox container:
+   ```bash
+   sudo pacman -S --needed gnome-keyring
+   ```
+
+2. **Manually create the default keyring**:
+   Create the file `/home/agent/.local/share/keyrings/login.keyring` with the following contents to disable automatic locking:
+   ```ini
+   [keyring]
+   display-name=login
+   ctime=0
+   mtime=0
+   lock-on-idle=false
+   lock-after=false
+   ```
+
+3. **Set the correct file permissions**:
+   ```bash
+   chmod 700 /home/agent/.local/share/keyrings
+   chmod 600 /home/agent/.local/share/keyrings/login.keyring
+   ```
+
+4. **Restart the keyring daemon** or the container. The next time the application is started, the session token will be successfully saved to the automatically unlocked virtual keyring.
+
