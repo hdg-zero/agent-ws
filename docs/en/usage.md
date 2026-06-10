@@ -26,7 +26,7 @@ The following shortcut is also installed:
 ai <command> [arguments...]
 ```
 
-`agent-run` runs a host command as `agent`, keeps the main session Wayland runtime, and forces Wayland backends (`MOZ_ENABLE_WAYLAND`, `GDK_BACKEND`, `QT_QPA_PLATFORM`).
+`agent-run` runs a host command as `agent`. It uses `/run/user/<uid-agent>` as `XDG_RUNTIME_DIR` so application IPC sockets, for example VS Code sockets, are created on the `agent` side, while the main Wayland socket is passed as an absolute path. It also forces Wayland backends (`ELECTRON_OZONE_PLATFORM_HINT`, `MOZ_ENABLE_WAYLAND`, `GDK_BACKEND`, `QT_QPA_PLATFORM`). It starts from `/home/agent` so it does not inherit an inaccessible current directory such as `/home/hdg`.
 
 ## Recommended working directory
 

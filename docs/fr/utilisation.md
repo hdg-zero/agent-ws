@@ -35,7 +35,7 @@ Le raccourci suivant est aussi installé :
 ai <commande> [arguments...]
 ```
 
-`agent-run` lance la commande sur l'hôte avec l'identité de `agent`, en conservant le runtime Wayland de la session principale et en forçant les backends Wayland (`MOZ_ENABLE_WAYLAND`, `GDK_BACKEND`, `QT_QPA_PLATFORM`).
+`agent-run` lance la commande sur l'hôte avec l'identité de `agent`. Il utilise `/run/user/<uid-agent>` comme `XDG_RUNTIME_DIR` pour que les sockets IPC des applications comme VS Code soient créés côté `agent`, et passe le socket Wayland principal en chemin absolu. Il force aussi les backends Wayland (`ELECTRON_OZONE_PLATFORM_HINT`, `MOZ_ENABLE_WAYLAND`, `GDK_BACKEND`, `QT_QPA_PLATFORM`). Il démarre depuis `/home/agent` pour ne pas hériter d'un répertoire courant inaccessible comme `/home/hdg`.
 
 Exemple :
 
