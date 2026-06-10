@@ -322,7 +322,16 @@ fi
 
 MAIN_UID="$(id -u "$MAIN_USER")"
 AGENT_UID="$(id -u "$AGENT_USER")"
+
+if [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
+  echo "Erreur : la variable WAYLAND_DISPLAY n'est pas définie dans l'environnement actuel." >&2
+  exit 1
+fi
 MAIN_WAYLAND_SOCKET="/run/user/$MAIN_UID/$WAYLAND_DISPLAY"
+if [[ ! -S "$MAIN_WAYLAND_SOCKET" ]]; then
+  echo "Erreur : Le socket Wayland n'existe pas ou n'est pas un socket valide à l'emplacement $MAIN_WAYLAND_SOCKET" >&2
+  exit 1
+fi
 
 # Changer de répertoire si l'utilisateur IA n'a pas les droits de lecture/exécution sur le répertoire courant
 if ! sudo -u "$AGENT_USER" test -x "$PWD" -a -r "$PWD" 2>/dev/null; then
