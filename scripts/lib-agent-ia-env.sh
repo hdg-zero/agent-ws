@@ -119,7 +119,7 @@ set_default_setup_values() {
   SHARED_DIR="${SHARED_DIR:-/srv/ia-projets}"
   BOX_NAME="${BOX_NAME:-agent-ia}"
   BOX_IMAGE="${BOX_IMAGE:-docker.io/library/archlinux:latest}"
-  WAYLAND_ALIAS="${WAYLAND_ALIAS:-wayland-user}"
+  WAYLAND_ALIAS="${WAYLAND_ALIAS:-wayland-hdg}"
 }
 
 load_config_or_defaults() {
