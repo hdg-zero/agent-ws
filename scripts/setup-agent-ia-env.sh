@@ -238,6 +238,14 @@ set -euo pipefail
 
 if [ $# -eq 0 ]; then
   exec agent-ia-enter --no-workdir
+elif [ "$1" = "--bg" ]; then
+  shift
+  if [ $# -eq 0 ]; then
+    echo "Erreur : aucune commande spécifiée après --bg" >&2
+    exit 1
+  fi
+  agent-ia-enter --no-workdir -- "$@" >/dev/null 2>&1 &
+  disown
 else
   exec agent-ia-enter --no-workdir -- "$@"
 fi
