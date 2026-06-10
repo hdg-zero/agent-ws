@@ -236,7 +236,11 @@ EOF_RUN
 #!/usr/bin/env bash
 set -euo pipefail
 
-exec agent-run "$@"
+if [ $# -eq 0 ]; then
+  exec agent-ia-enter
+else
+  exec agent-ia-enter -- "$@"
+fi
 EOF_AI
   run_sudo install -m 0755 "$tmp" /usr/local/bin/ai
 }
