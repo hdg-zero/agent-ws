@@ -39,6 +39,28 @@ ls -l "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
 2. relancer `scripts/setup-agent-ia-env.sh` si le socket hôte a changé ;
 3. recréer le Distrobox si le bind mount pointe vers un ancien socket.
 
+## `Authorization required, but no authorization protocol specified` puis `Error: cannot open display: :1`
+
+### Cause probable
+
+L'application essaie d'utiliser X11 via `DISPLAY=:1` au lieu de Wayland. C'est un cas fréquent avec des navigateurs basés sur Firefox comme `mullvad-browser`.
+
+### Correction
+
+Force Wayland au lancement :
+
+```bash
+MOZ_ENABLE_WAYLAND=1 mullvad-browser
+```
+
+Si nécessaire, vide aussi `DISPLAY` :
+
+```bash
+DISPLAY= MOZ_ENABLE_WAYLAND=1 mullvad-browser
+```
+
+Si cela corrige le problème, l'application partait bien sur le mauvais backend graphique.
+
 ## L'utilisateur IA lit encore `/home/<main-user>`
 
 ### Cause probable
