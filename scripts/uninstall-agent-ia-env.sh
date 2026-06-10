@@ -93,9 +93,13 @@ main() {
   print_agent_ws_banner
   bold "Désinstallation interactive de l'environnement IA"
   AGENT_USER="$(ask_value "Utilisateur IA" "$AGENT_USER")"
+  validate_identifier "Utilisateur IA" "$AGENT_USER"
   SHARED_GROUP="$(ask_value "Groupe partagé" "$SHARED_GROUP")"
+  validate_identifier "Groupe partagé" "$SHARED_GROUP"
   SHARED_DIR="$(ask_value "Dossier partagé projets" "$SHARED_DIR")"
+  validate_shared_dir_for_deletion "$SHARED_DIR"
   BOX_NAME="$(ask_value "Nom du Distrobox" "$BOX_NAME")"
+  validate_identifier "Nom du Distrobox" "$BOX_NAME"
 
   step_prepare_runtime
 

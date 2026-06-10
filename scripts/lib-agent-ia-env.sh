@@ -200,3 +200,17 @@ Socket Wayland hôte  : $WAYLAND_SOCKET
 Alias dans conteneur : $WAYLAND_ALIAS
 EOF_SUM
 }
+
+# Valide qu'un dossier partagé n'est pas un répertoire système critique avant suppression.
+validate_shared_dir_for_deletion() {
+  local value="$1"
+  validate_path "Dossier partagé" "$value"
+  local blacklisted=( "/" "/home" "/usr" "/var" "/etc" "/bin" "/lib" "/boot" "/root" "/sys" "/proc" "/dev" "/run" )
+  for path in "${blacklisted[@]}"; do
+    if [[ "$value" == "$path" || "$value" == "$path/" ]]; then
+      err "Suppression interdite pour le répertoire système critique : $value"
+      exit 1
+    fi
+  done
+}
+

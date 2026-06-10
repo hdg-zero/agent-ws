@@ -196,6 +196,10 @@ remove_group() {
 main() {
   require_not_root
   parse_args "$@"
+  validate_identifier "Utilisateur IA" "$AGENT_USER"
+  validate_identifier "Groupe partagé" "$SHARED_GROUP"
+  validate_shared_dir_for_deletion "$SHARED_DIR"
+  validate_identifier "Nom du Distrobox" "$BOX_NAME"
 
   print_agent_ws_banner
   if ! has_requested_action; then
