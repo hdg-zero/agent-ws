@@ -272,6 +272,9 @@ fi
 # shellcheck disable=SC1090
 source "$CONFIG_FILE"
 
+: "${AGENT_USER:?AGENT_USER manquant dans $CONFIG_FILE}"
+: "${AGENT_RUNTIME:?AGENT_RUNTIME manquant dans $CONFIG_FILE}"
+
 CURRENT_SOCKET="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
 
 # Changer de répertoire si l'utilisateur IA n'a pas les droits de lecture/exécution sur le répertoire courant
@@ -283,8 +286,8 @@ sudo setfacl -m "u:$AGENT_USER:x,m::x" "$XDG_RUNTIME_DIR"
 sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$CURRENT_SOCKET"
 
 exec sudo -H -u "$AGENT_USER" env \
-  XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
-  WAYLAND_DISPLAY="$WAYLAND_DISPLAY" \
+  XDG_RUNTIME_DIR="$AGENT_RUNTIME" \
+  WAYLAND_DISPLAY="$CURRENT_SOCKET" \
   DBUS_SESSION_BUS_ADDRESS="unix:path=$AGENT_RUNTIME/bus" \
   XDG_SESSION_TYPE=wayland \
   HOME="/home/$AGENT_USER" \
