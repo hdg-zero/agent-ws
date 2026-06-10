@@ -348,9 +348,9 @@ EOF_RUN
 set -euo pipefail
 
 if [ $# -eq 0 ]; then
-  exec agent-ia-enter
+  exec agent-ia-enter --no-workdir
 else
-  exec agent-ia-enter -- "$@"
+  exec agent-ia-enter --no-workdir -- "$@"
 fi
 EOF_AI
   run_sudo install -m 0755 "$tmp" /usr/local/bin/ai
