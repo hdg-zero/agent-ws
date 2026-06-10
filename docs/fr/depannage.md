@@ -61,6 +61,8 @@ DISPLAY= MOZ_ENABLE_WAYLAND=1 mullvad-browser
 
 Si cela corrige le problème, l'application partait bien sur le mauvais backend graphique.
 
+Si un outil comme `antigravity` doit ouvrir le navigateur automatiquement, vérifie aussi que `xdg-open` pointe bien vers `mullvad-browser.desktop`. Après correction du navigateur par défaut ou du fichier desktop local, relance `antigravity` et, si besoin, le navigateur déjà ouvert.
+
 ## L'utilisateur IA lit encore `/home/<main-user>`
 
 ### Cause probable

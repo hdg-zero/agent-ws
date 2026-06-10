@@ -58,6 +58,8 @@ DISPLAY= MOZ_ENABLE_WAYLAND=1 mullvad-browser
 
 If this fixes it, the application was selecting the wrong graphical backend.
 
+If a tool such as `antigravity` needs to open the browser automatically, also verify that `xdg-open` resolves to `mullvad-browser.desktop`. After fixing the default browser or the local desktop entry, restart `antigravity` and, if needed, the browser process that was already running.
+
 ## The AI user can still read `/home/<main-user>`
 
 ### Likely cause
