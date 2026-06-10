@@ -295,21 +295,24 @@ print_agent_ws_banner
 
 CONFIG_FILE="/etc/agent-ia-env.conf"
 AGENT_USER=agent
-MAIN_USER=user
+MAIN_USER="${USER:-hdg}"
 if [[ -r "$CONFIG_FILE" ]]; then
   # shellcheck disable=SC1090
   source "$CONFIG_FILE"
 fi
 
 MAIN_UID="$(id -u "$MAIN_USER")"
+AGENT_UID="$(id -u "$AGENT_USER")"
+MAIN_WAYLAND_SOCKET="/run/user/$MAIN_UID/$WAYLAND_DISPLAY"
 
 sudo setfacl -m "u:$AGENT_USER:x,m::x" "/run/user/$MAIN_UID"
-sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "/run/user/$MAIN_UID/$WAYLAND_DISPLAY"
+sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$MAIN_WAYLAND_SOCKET"
 
 exec sudo -H -u "$AGENT_USER" env \
-  XDG_RUNTIME_DIR="/run/user/$MAIN_UID" \
-  WAYLAND_DISPLAY="$WAYLAND_DISPLAY" \
+  XDG_RUNTIME_DIR="/run/user/$AGENT_UID" \
+  WAYLAND_DISPLAY="$MAIN_WAYLAND_SOCKET" \
   XDG_SESSION_TYPE=wayland \
+  ELECTRON_OZONE_PLATFORM_HINT=wayland \
   MOZ_ENABLE_WAYLAND=1 \
   GDK_BACKEND=wayland \
   QT_QPA_PLATFORM=wayland \
@@ -317,7 +320,8 @@ exec sudo -H -u "$AGENT_USER" env \
   HOME="/home/$AGENT_USER" \
   USER="$AGENT_USER" \
   LOGNAME="$AGENT_USER" \
-  "$@"
+  SHELL=/bin/bash \
+  bash -lc 'cd "$HOME" && exec "$@"' bash "$@"
 EOF_RUN
   run_sudo install -m 0755 "$tmp" /usr/local/bin/agent-run
 
