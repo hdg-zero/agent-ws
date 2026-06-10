@@ -109,6 +109,7 @@ sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$CURRENT_SOCKET"
 exec sudo -H -u "$AGENT_USER" env \
   XDG_RUNTIME_DIR="$AGENT_RUNTIME" \
   WAYLAND_DISPLAY="$WAYLAND_ALIAS" \
+  DBUS_SESSION_BUS_ADDRESS="unix:path=$AGENT_RUNTIME/bus" \
   XDG_SESSION_TYPE=wayland \
   ELECTRON_OZONE_PLATFORM_HINT=wayland \
   MOZ_ENABLE_WAYLAND=1 \
@@ -173,6 +174,7 @@ sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$CURRENT_SOCKET"
 exec sudo -H -u "$AGENT_USER" env \
   XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
   WAYLAND_DISPLAY="$WAYLAND_DISPLAY" \
+  DBUS_SESSION_BUS_ADDRESS="unix:path=$AGENT_RUNTIME/bus" \
   XDG_SESSION_TYPE=wayland \
   HOME="/home/$AGENT_USER" \
   USER="$AGENT_USER" \
@@ -222,6 +224,7 @@ sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$MAIN_WAYLAND_SOCKET"
 exec sudo -H -u "$AGENT_USER" env \
   XDG_RUNTIME_DIR="/run/user/$AGENT_UID" \
   WAYLAND_DISPLAY="$MAIN_WAYLAND_SOCKET" \
+  DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$AGENT_UID/bus" \
   XDG_SESSION_TYPE=wayland \
   ELECTRON_OZONE_PLATFORM_HINT=wayland \
   MOZ_ENABLE_WAYLAND=1 \
