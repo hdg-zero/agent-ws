@@ -245,7 +245,7 @@ exec sudo -H -u "$AGENT_USER" env \
   USER="$AGENT_USER" \
   LOGNAME="$AGENT_USER" \
   SHELL=/bin/bash \
-  bash -lc 'cd "$HOME" && exec "$@"' bash "$@"
+  bash -lc 'exec "$@"' bash "$@"
 EOF_RUN
   run_sudo install -m 0755 "$tmp" /usr/local/bin/agent-run
 
