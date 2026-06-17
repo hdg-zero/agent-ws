@@ -222,7 +222,7 @@ CURRENT_SOCKET="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
 
 # Changer de répertoire si l'utilisateur IA n'a pas les droits de lecture/exécution sur le répertoire courant
 if ! sudo -u "$AGENT_USER" test -x "$PWD" -a -r "$PWD" 2>/dev/null; then
-  cd "/home/$AGENT_USER" || cd /
+  cd "${SHARED_DIR:-/}" 2>/dev/null || cd /
 fi
 
 sudo setfacl -m "u:$AGENT_USER:x,m::x" "$XDG_RUNTIME_DIR"
@@ -279,7 +279,7 @@ CURRENT_SOCKET="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
 
 # Changer de répertoire si l'utilisateur IA n'a pas les droits de lecture/exécution sur le répertoire courant
 if ! sudo -u "$AGENT_USER" test -x "$PWD" -a -r "$PWD" 2>/dev/null; then
-  cd "/home/$AGENT_USER" || cd /
+  cd "${SHARED_DIR:-/}" 2>/dev/null || cd /
 fi
 
 sudo setfacl -m "u:$AGENT_USER:x,m::x" "$XDG_RUNTIME_DIR"
@@ -338,7 +338,7 @@ fi
 
 # Changer de répertoire si l'utilisateur IA n'a pas les droits de lecture/exécution sur le répertoire courant
 if ! sudo -u "$AGENT_USER" test -x "$PWD" -a -r "$PWD" 2>/dev/null; then
-  cd "/home/$AGENT_USER" || cd /
+  cd "${SHARED_DIR:-/}" 2>/dev/null || cd /
 fi
 
 sudo setfacl -m "u:$AGENT_USER:x,m::x" "/run/user/$MAIN_UID"
