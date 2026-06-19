@@ -139,3 +139,26 @@ You need to manually initialize a persistent and unlocked (blank password) `logi
 
 4. **Restart the keyring daemon** or the container. The next time the application is started, the session token will be successfully saved to the automatically unlocked virtual keyring.
 
+## Antigravity does not start (the command exits immediately without opening any window)
+
+### Likely cause
+
+The Antigravity application (based on Electron) uses a single-instance lock. If a residual or zombie `antigravity` process is already running in the background (e.g., after a sudden graphical logout or crash), any new launch attempt will detect the lock, request the existing instance to focus, and immediately exit (returning the command prompt). If the existing instance is stuck, no window will ever appear.
+
+A DBus warning may be displayed in the terminal:
+```text
+Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+```
+This warning is related to the container isolation, is harmless, and does not prevent the application from running.
+
+### Fix
+
+Kill all residual `antigravity` processes in the background to release the lock:
+
+```bash
+killall -9 antigravity
+```
+
+Then launch the application again normally.
+
+

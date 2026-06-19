@@ -199,6 +199,28 @@ Il faut initialiser un trousseau de clés par défaut (`login.keyring`) persista
 
 4. **Redémarrer le service de trousseau de clés** ou le conteneur. Lors du prochain appel de l'application, le jeton sera persisté dans le trousseau de clés virtuel déverrouillé automatiquement.
 
+## Antigravity ne se lance pas (la commande se termine immédiatement sans ouvrir de fenêtre)
+
+### Cause probable
+
+L'application Antigravity (basée sur Electron) utilise un verrou d'instance unique (*single-instance lock*). Si un processus `antigravity` résiduel ou zombie tourne déjà en arrière-plan (par exemple suite à une déconnexion graphique ou à un plantage), toute nouvelle tentative de lancement détecte le verrou, demande à l'instance existante d'apparaître, puis s'arrête immédiatement (rendant le prompt). Si l'ancienne instance est bloquée ou fantôme, aucune fenêtre ne s'ouvre.
+
+Un message d'erreur DBus peut s'afficher dans le terminal :
+```text
+Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: Aucun fichier ou dossier de ce nom
+```
+Cet avertissement est lié à l'isolement du conteneur, il est sans gravité et n'empêche pas le bon fonctionnement de l'application.
+
+### Correction
+
+Tuez tous les processus d'`antigravity` résiduels de l'utilisateur pour libérer le verrou :
+
+```bash
+killall -9 antigravity
+```
+
+Relancez ensuite l'application normalement.
+
 ## Quand arrêter de déboguer et passer à une VM
 
 Si tu multiplies les exceptions, montages ou contournements pour faire fonctionner des outils non fiables, l'architecture sort de son cas d'usage. À ce stade, une VM dédiée est plus adaptée.
