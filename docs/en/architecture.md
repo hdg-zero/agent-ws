@@ -2,9 +2,9 @@
 
 ## Principle
 
-The main user keeps the graphical session and the private home directory. A second Linux user, dedicated to AI tools, runs rootless Podman and the Distrobox container. Projects are exchanged through an explicit shared directory.
+The main user keeps their graphical session and private home directory. A second Linux user, dedicated to AI tools, runs rootless Podman and the Distrobox container. Projects are exchanged through an explicit shared directory.
 
-Typical roles:
+Example roles:
 
 - main user: `archuser`
 - AI user: `agent`
@@ -14,7 +14,14 @@ Typical roles:
 
 ## Why not rely on Distrobox alone
 
-Distrobox is excellent for reproducibility, developer ergonomics, GUI integration, and dependency isolation. It is not meant to be a strict security sandbox. Its purpose is host integration, not VM-grade separation. The actual boundary must therefore be the dedicated Linux account.
+Distrobox is excellent for:
+
+- reproducibility;
+- developer ergonomics;
+- GUI integration;
+- dependency isolation.
+
+However, it is not a strict security sandbox. Its purpose is host integration, not VM-grade separation. The actual boundary must therefore be the dedicated Linux account.
 
 ## Logical view
 
@@ -50,7 +57,7 @@ main user  ── rwx ──┐
 agent user ── rwx ──┘
 ```
 
-The main home directory should stay blocked:
+The main home directory must not be exposed:
 
 ```text
 agent user ─X─> /home/<main-user>
@@ -64,7 +71,7 @@ chmod 700 /home/<main-user>
 
 ## Wayland GUI flow
 
-GUI apps run in Distrobox but display inside the main user's Wayland session.
+GUI applications run inside Distrobox, but display in the main user's Wayland session.
 
 ```text
 GUI app inside Distrobox
@@ -81,16 +88,20 @@ GUI app inside Distrobox
 Main Wayland / Hyprland session
 ```
 
-Access is granted through ACLs on the main user's runtime directory and the active Wayland socket.
+Access is granted through ACLs on:
 
-## Components
+- the main user's runtime directory;
+- the active Wayland socket;
+- the AI user's runtime directory.
+
+## Component roles
 
 ### Main user
 
 Keeps:
 
-- the personal home directory;
-- the graphical session;
+- personal home directory;
+- graphical session;
 - sensitive files and secrets;
 - administrative control through `sudo`.
 
@@ -105,34 +116,51 @@ Owns:
 
 ### Shared group
 
-The shared group allows both users to write to the same project space. The setup script configures ownership, `setgid`, and default ACLs on `/srv/ia-projets`.
+The shared group allows both users to write to the same project space. The script configures:
+
+```bash
+chown root:iawork /srv/ia-projets
+chmod 2770 /srv/ia-projets
+setfacl -m g:iawork:rwx /srv/ia-projets
+setfacl -d -m g:iawork:rwx /srv/ia-projets
+```
+
+The `setgid` bit guarantees group inheritance on new files.
 
 ### Rootless Podman
 
-Podman must run with the AI user's runtime:
+Podman must be launched with the correct user runtime:
 
 ```text
 XDG_RUNTIME_DIR=/run/user/<uid-agent>
 ```
 
-Using the main user's runtime can trigger errors such as:
+If Podman reuses the main account's runtime, you may see errors such as:
 
 ```text
 chmod /run/user/1000/libpod: operation not permitted
 ```
 
-## Security expectations
+## Realistic security assumptions
 
-This setup significantly improves isolation for AI-assisted development, but it is still below VM-grade isolation.
+This architecture significantly improves isolation for AI-assisted development, but it remains below a VM.
 
 It protects well against:
 
-- accidental exposure of the main home directory;
-- polluting the main workstation with tool dependencies;
+- accidental reading of the main home directory;
+- polluting the main workstation with dependencies;
 - uncontrolled project sprawl.
 
 It does not protect well against:
 
 - actively malicious code;
 - deep host compromise;
-- workloads that require strong system isolation.
+- workloads requiring strong system-level isolation.
+
+## When to choose something else
+
+Use a VM or a separate machine if:
+
+- you run untrusted code;
+- you manipulate highly sensitive secrets;
+- you need strong defensive isolation rather than practical workstation hygiene.
