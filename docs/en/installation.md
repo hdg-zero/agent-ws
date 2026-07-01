@@ -46,6 +46,8 @@ The recommended manual flow is:
 8. mount the shared directory and Wayland socket;
 9. install tools inside the container.
 
+You can then use the scripts only if you want to reproduce or automate this behavior.
+
 ### Validated manual creation
 
 After creating the user, group, and shared directory, the validated process uses the AI user's SubUID/SubGID entries and enables its runtime:
@@ -95,12 +97,12 @@ sudo -H -u agent \
 
 ## Script-assisted installation
 
-The repository now provides two variants:
+The repository provides two variants:
 
-- `scripts/setup-agent-ia-env.sh`: interactive setup, suitable for first-time installation.
-- `scripts/setup-agent-ia-env-noninteractive.sh`: non-interactive setup for automation.
+- `scripts/setup-agent-ia-env.sh`: interactive version, suitable for a first installation;
+- `scripts/setup-agent-ia-env-noninteractive.sh`: non-interactive version, suitable for automation.
 
-Use the interactive setup script:
+To run the interactive setup script:
 
 ```bash
 chmod +x scripts/setup-agent-ia-env.sh
@@ -111,7 +113,7 @@ The script asks for confirmation before each structural step.
 
 ## Non-interactive installation
 
-The non-interactive variant runs the same main stages without intermediate prompts.
+The non-interactive variant executes the same main stages without intermediate prompts.
 
 Minimal example:
 
@@ -140,30 +142,112 @@ Useful options:
 
 ## What the script does
 
-1. Installs host packages such as `podman`, `distrobox`, `acl`, `fuse-overlayfs`, `slirp4netns`, and `passt`.
-2. Creates or reuses the AI user, `agent` by default.
-3. Verifies SubUID/SubGID entries for the AI user and creates a free range if missing.
-4. Creates the shared group and shared project directory.
-5. Protects the main home directory with `chmod 700`.
-6. Enables linger and waits for the real `/run/user/<uid-agent>` runtime.
-7. Applies temporary ACLs for the active Wayland socket.
-8. Creates the Distrobox with shared volumes and Wayland variables.
-9. Installs helper launchers and writes `/etc/agent-ia-env.conf`.
+### 1. Installs host packages
 
-## Default image
+On Arch Linux, the script installs if necessary:
 
-The validated v1 documentation uses:
+- `podman`
+- `distrobox`
+- `acl`
+- `fuse-overlayfs`
+- `slirp4netns`
+- `passt`
+
+### 2. Creates or reuses the AI user
+
+By default:
+
+- AI user: `agent`
+- shell: `/bin/bash`
+- locked password
+
+The account is designed to be used via `sudo -u`, not as a full graphical session.
+
+### Default image
+
+The validated v1 documentation defaults to:
 
 ```text
 docker.io/library/archlinux:latest
 ```
 
+### 3. Verifies SubUID/SubGID
+
+The script checks that the AI user has a range in `/etc/subuid` and `/etc/subgid`.
+
+If a range is missing, it adds an available range using `usermod --add-subuids` and `usermod --add-subgids`. Without these mappings, Podman might create a container that fails to map UID 0, causing Distrobox creation to fail at the end.
+
+### 4. Prepares the shared directory
+
+By default:
+
+```text
+/srv/ia-projets
+```
+
+With:
+
+- shared group `iawork`;
+- permissions `2770`;
+- default read/write/execute ACLs for the shared group.
+
+### 5. Protects the main home directory
+
+The script proposes:
+
+```bash
+chmod 700 /home/<main-user>
+```
+
+This is a key step. Without it, main home isolation is weak or non-existent.
+
+### 6. Prepares the AI user runtime
+
+The script enables linger:
+
+```bash
+sudo loginctl enable-linger agent
+```
+
+Then it waits for the real runtime to exist:
+
+```text
+/run/user/<uid-agent>
+```
+
+It no longer creates this directory manually.
+
+### 7. Prepares Wayland access
+
+The script:
+
+- detects the current Wayland socket;
+- temporarily grants the required ACLs to the AI account;
+- saves the source socket path in the configuration file.
+
+### 8. Creates the Distrobox
+
+The Distrobox is created as the AI user, with at minimum:
+
+- mount of `/srv/ia-projets` to `/Projets`;
+- mount of the Wayland socket into the AI account's runtime;
+- required Wayland environment variables.
+
+### 9. Installs launchers
+
+The script writes:
+
+- `/etc/agent-ia-env.conf`
+- `/usr/local/bin/agent-ia-enter`
+- `/usr/local/bin/agent-shell`
+- `/usr/local/bin/agent-run`
+- `/usr/local/bin/ai`
 
 ## Manual installation of tools inside the container
 
-The setup script no longer installs a base development toolchain automatically inside the Distrobox. This is intentional: it is not required for the environment itself, and it adds unnecessary fragility to the installation flow.
+Installing development tools is no longer automated by the setup script. This is intentional: this step is not strictly required for setting up the environment, and it adds unnecessary fragility to the setup process.
 
-Once inside the container, install only what you actually need.
+Once inside the Distrobox, install only what you need.
 
 Example for Arch inside the container:
 
@@ -172,11 +256,9 @@ sudo pacman -Syu --noconfirm
 sudo pacman -S --needed --noconfirm git curl wget base-devel nodejs npm python python-pip
 ```
 
-
-
 ## Post-installation checks
 
-Check that the AI user cannot read the main home directory:
+### Check that the AI user cannot read the main home directory
 
 ```bash
 sudo -H -u agent ls /home/<main-user>
@@ -188,37 +270,51 @@ Expected result:
 Permission denied
 ```
 
-Check the shared directory:
+### Check the shared directory
 
 ```bash
 ls -ld /srv/ia-projets
 getfacl /srv/ia-projets
 ```
 
-Enter the environment:
+### Enter the AI environment
 
 ```bash
 agent-ia-enter
-cd /Projets
 ```
 
-The setup also installs `agent-shell`, `agent-run`, and `ai`.
+Then inside the container:
+
+```bash
+cd /Projets
+```
 
 ## Uninstall
 
 Two variants are available:
 
-- `scripts/uninstall-agent-ia-env.sh`: interactive uninstall.
-- `scripts/uninstall-agent-ia-env-noninteractive.sh`: non-interactive uninstall.
+- `scripts/uninstall-agent-ia-env.sh`: interactive version;
+- `scripts/uninstall-agent-ia-env-noninteractive.sh`: non-interactive version.
 
-Use:
+The uninstall script is:
 
 ```bash
 chmod +x scripts/uninstall-agent-ia-env.sh
 ./scripts/uninstall-agent-ia-env.sh
 ```
 
-The uninstall script can selectively remove the container, launchers, ACLs, configuration, shared directory, AI user sessions/processes, `/run/user/<uid-agent>`, SubUID/SubGID entries, the AI user, and the shared group.
+It allows you to selectively remove:
+
+- the Distrobox;
+- the launchers;
+- Wayland ACLs;
+- the configuration file;
+- the shared directory;
+- AI user sessions/processes;
+- the `/run/user/<uid-agent>` runtime;
+- `/etc/subuid` and `/etc/subgid` entries;
+- the AI user;
+- the shared group.
 
 Non-interactive example:
 
@@ -230,12 +326,12 @@ chmod +x scripts/uninstall-agent-ia-env-noninteractive.sh
   --remove-config
 ```
 
-To remove everything handled by the script:
+To remove everything within the scope managed by the script:
 
 ```bash
 ./scripts/uninstall-agent-ia-env-noninteractive.sh --all
 ```
 
-`--all` also removes the AI user, its home, runtime directory, SubUID/SubGID entries, the shared group, and the shared directory.
+`--all` also removes the AI user, its home directory, runtime, SubUID/SubGID entries, the shared group, and the shared project directory.
 
-Without any option, the non-interactive variant now fails intentionally with a usage message instead of silently doing nothing.
+Without any options, the non-interactive variant fails intentionally with a usage message instead of silently doing nothing.
