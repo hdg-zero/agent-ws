@@ -221,6 +221,27 @@ killall -9 antigravity
 
 Relancez ensuite l'application normalement.
 
+## Erreur d'ouverture de l'explorateur de dossiers/fichiers (Request ended / cannot open display)
+
+### Cause probable
+
+Dans les versions récentes d'Electron/Chromium, l'application tente d'utiliser l'API XDG Desktop Portal (`org.freedesktop.portal.FileChooser`) via D-Bus pour afficher les boîtes de dialogue de fichiers natives.
+
+Comme le conteneur Distrobox utilise le bus D-Bus de l'utilisateur `agent`, la requête réveille le service `xdg-desktop-portal-gtk.service` de l'utilisateur. Cependant, ce service systemd démarre **sur l'hôte** (en dehors du conteneur) où le socket Wayland n'est pas accessible directement pour lui, provoquant l'erreur `cannot open display:` et annulant la requête (erreur `Request ended (non-user cancelled)`).
+
+### Correction
+
+Il faut forcer le démarrage du portail GTK en arrière-plan **à l'intérieur** du conteneur (où le socket Wayland est correctement monté et accessible) afin qu'il traite les requêtes D-Bus localement.
+
+Ajoutez le bloc suivant à la fin du fichier `/home/agent/.bash_profile` dans le conteneur :
+
+```bash
+# Démarrer le portail GTK en arrière-plan dans le conteneur s'il n'est pas déjà lancé
+if [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && ! pgrep -u "$USER" -f "/usr/lib/xdg-desktop-portal-[g]tk" >/dev/null; then
+    /usr/lib/xdg-desktop-portal-gtk -r >/dev/null 2>&1 &
+fi
+```
+
 ## Quand arrêter de déboguer et passer à une VM
 
 Si tu multiplies les exceptions, montages ou contournements pour faire fonctionner des outils non fiables, l'architecture sort de son cas d'usage. À ce stade, une VM dédiée est plus adaptée.
