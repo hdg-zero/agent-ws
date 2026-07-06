@@ -159,8 +159,12 @@ step_prepare_agent_runtime() {
 }
 
 step_apply_wayland_acl() {
-  run_sudo setfacl -m "u:$AGENT_USER:x,m::x" "$XDG_RUNTIME_DIR"
-  run_sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$WAYLAND_SOCKET"
+  if [[ "${WAYLAND_AVAILABLE:-0}" -eq 1 ]]; then
+    run_sudo setfacl -m "u:$AGENT_USER:x,m::x" "$XDG_RUNTIME_DIR"
+    run_sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$WAYLAND_SOCKET"
+  else
+    info "Étape ignorée : ACL Wayland (Pas de session Wayland active)."
+  fi
 }
 
 step_create_distrobox() {
@@ -173,10 +177,16 @@ step_create_distrobox() {
     fi
   fi
 
-  run_as_agent distrobox create --yes --name "$BOX_NAME" \
-    --image "$BOX_IMAGE" \
-    --volume "$SHARED_DIR:/Projets:rw" \
-    --volume "$WAYLAND_SOCKET:$AGENT_RUNTIME/$WAYLAND_ALIAS"
+  if [[ "${WAYLAND_AVAILABLE:-0}" -eq 1 ]]; then
+    run_as_agent distrobox create --yes --name "$BOX_NAME" \
+      --image "$BOX_IMAGE" \
+      --volume "$SHARED_DIR:/Projets:rw" \
+      --volume "$WAYLAND_SOCKET:$AGENT_RUNTIME/$WAYLAND_ALIAS"
+  else
+    run_as_agent distrobox create --yes --name "$BOX_NAME" \
+      --image "$BOX_IMAGE" \
+      --volume "$SHARED_DIR:/Projets:rw"
+  fi
 }
 
 main() {

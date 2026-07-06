@@ -158,16 +158,26 @@ EOF_CONF
 }
 
 validate_wayland_session() {
+  WAYLAND_AVAILABLE=0
+  WAYLAND_SOCKET=""
   if [[ -z "${XDG_RUNTIME_DIR:-}" || -z "${WAYLAND_DISPLAY:-}" ]]; then
-    err "XDG_RUNTIME_DIR ou WAYLAND_DISPLAY est vide. Lance ce script depuis ta session Hyprland/Wayland."
-    exit 1
+    warn "XDG_RUNTIME_DIR ou WAYLAND_DISPLAY est vide. Pas de session Wayland active détectée."
+    return 0
   fi
 
-  WAYLAND_SOCKET="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
-  if [[ ! -S "$WAYLAND_SOCKET" ]]; then
-    err "Le socket Wayland n'existe pas ou n'est pas un socket : $WAYLAND_SOCKET"
-    exit 1
+  if [[ "$WAYLAND_DISPLAY" =~ ^/ ]]; then
+    WAYLAND_SOCKET="$WAYLAND_DISPLAY"
+  else
+    WAYLAND_SOCKET="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
   fi
+
+  if [[ ! -S "$WAYLAND_SOCKET" ]]; then
+    warn "Le socket Wayland n'existe pas ou n'est pas un socket : $WAYLAND_SOCKET. Pas de session Wayland active détectée."
+    WAYLAND_SOCKET=""
+    return 0
+  fi
+
+  WAYLAND_AVAILABLE=1
 }
 
 run_as_agent() {

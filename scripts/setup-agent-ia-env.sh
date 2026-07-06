@@ -84,8 +84,12 @@ step_protect_main_home() {
 }
 
 step_apply_wayland_acl() {
-  run_sudo setfacl -m "u:$AGENT_USER:x,m::x" "$XDG_RUNTIME_DIR"
-  run_sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$WAYLAND_SOCKET"
+  if [[ "${WAYLAND_AVAILABLE:-0}" -eq 1 ]]; then
+    run_sudo setfacl -m "u:$AGENT_USER:x,m::x" "$XDG_RUNTIME_DIR"
+    run_sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$WAYLAND_SOCKET"
+  else
+    info "Étape ignorée : ACL Wayland (Pas de session Wayland active)."
+  fi
 }
 
 step_prepare_agent_runtime() {
@@ -104,10 +108,16 @@ step_create_distrobox() {
     fi
   fi
 
-  run_as_agent distrobox create --name "$BOX_NAME" \
-    --image "$BOX_IMAGE" \
-    --volume "$SHARED_DIR:/Projets:rw" \
-    --volume "$WAYLAND_SOCKET:$AGENT_RUNTIME/$WAYLAND_ALIAS"
+  if [[ "${WAYLAND_AVAILABLE:-0}" -eq 1 ]]; then
+    run_as_agent distrobox create --name "$BOX_NAME" \
+      --image "$BOX_IMAGE" \
+      --volume "$SHARED_DIR:/Projets:rw" \
+      --volume "$WAYLAND_SOCKET:$AGENT_RUNTIME/$WAYLAND_ALIAS"
+  else
+    run_as_agent distrobox create --name "$BOX_NAME" \
+      --image "$BOX_IMAGE" \
+      --volume "$SHARED_DIR:/Projets:rw"
+  fi
 }
 
 main() {
@@ -187,8 +197,12 @@ main() {
     AGENT_RUNTIME="/run/user/$AGENT_UID"
   fi
 
-  if confirm_step "7. ACL Wayland" "Donne à $AGENT_USER l'accès au runtime et au socket Wayland courant."; then
-    step_apply_wayland_acl
+  if [[ "${WAYLAND_AVAILABLE:-0}" -eq 1 ]]; then
+    if confirm_step "7. ACL Wayland" "Donne à $AGENT_USER l'accès au runtime et au socket Wayland courant."; then
+      step_apply_wayland_acl
+    fi
+  else
+    info "Étape ignorée : ACL Wayland (Pas de session Wayland active)."
   fi
 
   write_config_file
