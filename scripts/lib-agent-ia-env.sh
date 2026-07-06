@@ -120,6 +120,7 @@ set_default_setup_values() {
   BOX_NAME="${BOX_NAME:-agent-ia}"
   BOX_IMAGE="${BOX_IMAGE:-docker.io/library/archlinux:latest}"
   WAYLAND_ALIAS="${WAYLAND_ALIAS:-wayland-hdg}"
+  PREFERRED_TERMINAL="${PREFERRED_TERMINAL:-foot}"
 }
 
 load_config_or_defaults() {
@@ -150,6 +151,7 @@ WAYLAND_ALIAS="$WAYLAND_ALIAS"
 WAYLAND_SOURCE_SOCKET="$WAYLAND_SOCKET"
 AGENT_UID="$AGENT_UID"
 AGENT_RUNTIME="$AGENT_RUNTIME"
+PREFERRED_TERMINAL="${PREFERRED_TERMINAL:-foot}"
 EOF_CONF
   run_sudo install -m 0644 "$tmp" "$config_file"
   rm -f "$tmp"
@@ -198,6 +200,7 @@ Distrobox            : $BOX_NAME
 Image                : $BOX_IMAGE
 Socket Wayland hôte  : $WAYLAND_SOCKET
 Alias dans conteneur : $WAYLAND_ALIAS
+Terminal préféré     : $PREFERRED_TERMINAL
 EOF_SUM
 }
 
@@ -335,6 +338,47 @@ fi
 sudo setfacl -m "u:$AGENT_USER:x,m::x" "$XDG_RUNTIME_DIR"
 sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$CURRENT_SOCKET"
 
+# Choix du terminal avec fallback
+TERM_CMD=""
+TERM_ARGS=()
+
+if [[ -n "${PREFERRED_TERMINAL:-}" ]]; then
+  if command -v "$PREFERRED_TERMINAL" >/dev/null 2>&1; then
+    TERM_CMD="$PREFERRED_TERMINAL"
+    case "$TERM_CMD" in
+      kitty) TERM_ARGS=("--directory" "/home/$AGENT_USER") ;;
+      konsole) TERM_ARGS=("--workdir" "/home/$AGENT_USER") ;;
+      *) TERM_ARGS=("--working-directory" "/home/$AGENT_USER") ;;
+    esac
+  fi
+fi
+
+if [[ -z "$TERM_CMD" ]]; then
+  # Recherche automatique des terminaux courants
+  if command -v foot >/dev/null 2>&1; then
+    TERM_CMD="foot"
+    TERM_ARGS=("--working-directory" "/home/$AGENT_USER")
+  elif command -v alacritty >/dev/null 2>&1; then
+    TERM_CMD="alacritty"
+    TERM_ARGS=("--working-directory" "/home/$AGENT_USER")
+  elif command -v kitty >/dev/null 2>&1; then
+    TERM_CMD="kitty"
+    TERM_ARGS=("--directory" "/home/$AGENT_USER")
+  elif command -v gnome-terminal >/dev/null 2>&1; then
+    TERM_CMD="gnome-terminal"
+    TERM_ARGS=("--working-directory" "/home/$AGENT_USER")
+  elif command -v konsole >/dev/null 2>&1; then
+    TERM_CMD="konsole"
+    TERM_ARGS=("--workdir" "/home/$AGENT_USER")
+  elif command -v xfce4-terminal >/dev/null 2>&1; then
+    TERM_CMD="xfce4-terminal"
+    TERM_ARGS=("--working-directory" "/home/$AGENT_USER")
+  else
+    echo "Aucun terminal graphique compatible trouvé (foot, alacritty, kitty, gnome-terminal, konsole, xfce4-terminal)." >&2
+    exit 1
+  fi
+fi
+
 exec sudo -H -u "$AGENT_USER" env \
   XDG_RUNTIME_DIR="$AGENT_RUNTIME" \
   WAYLAND_DISPLAY="$CURRENT_SOCKET" \
@@ -344,7 +388,7 @@ exec sudo -H -u "$AGENT_USER" env \
   USER="$AGENT_USER" \
   LOGNAME="$AGENT_USER" \
   SHELL=/bin/bash \
-  foot --working-directory="/home/$AGENT_USER" "$@"
+  "$TERM_CMD" "${TERM_ARGS[@]}" "$@"
 EOF_SHELL
   run_sudo install -m 0755 "$tmp" /usr/local/bin/agent-shell
 

@@ -30,6 +30,7 @@ Options:
   --box-name NAME
   --box-image IMAGE
   --wayland-alias NAME
+  --preferred-terminal NAME
   --recreate-box
   --skip-host-packages
   --skip-agent-user
@@ -55,6 +56,7 @@ parse_args() {
       --box-name) BOX_NAME="$2"; shift 2 ;;
       --box-image) BOX_IMAGE="$2"; shift 2 ;;
       --wayland-alias) WAYLAND_ALIAS="$2"; shift 2 ;;
+      --preferred-terminal) PREFERRED_TERMINAL="$2"; shift 2 ;;
       --recreate-box) RECREATE_BOX=1; shift ;;
       --skip-host-packages) INSTALL_HOST_PACKAGES=0; shift ;;
       --skip-agent-user) SETUP_AGENT_USER=0; shift ;;
@@ -184,8 +186,13 @@ main() {
   validate_identifier "Nom du groupe partagé" "$SHARED_GROUP"
   validate_identifier "Nom du Distrobox" "$BOX_NAME"
   validate_identifier "Alias socket Wayland" "$WAYLAND_ALIAS"
+  validate_identifier "Terminal graphique préféré" "$PREFERRED_TERMINAL"
   validate_path "Dossier partagé" "$SHARED_DIR"
   validate_wayland_session
+
+  if ! command_exists "$PREFERRED_TERMINAL"; then
+    warn "Le terminal graphique '$PREFERRED_TERMINAL' n'est pas installé sur l'hôte."
+  fi
 
   AGENT_UID="${AGENT_UID:-}"
   AGENT_RUNTIME="${AGENT_RUNTIME:-}"

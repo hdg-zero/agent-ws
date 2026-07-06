@@ -131,6 +131,30 @@ main() {
   WAYLAND_ALIAS="$(ask_value "Nom du socket Wayland dans le conteneur" "$WAYLAND_ALIAS")"
   validate_identifier "Alias socket Wayland" "$WAYLAND_ALIAS"
 
+  # Détection automatique des terminaux graphiques installés sur l'hôte
+  local detected_terms=()
+  for t in foot alacritty kitty gnome-terminal konsole xfce4-terminal; do
+    if command_exists "$t"; then
+      detected_terms+=("$t")
+    fi
+  done
+
+  local default_term="foot"
+  if [[ ${#detected_terms[@]} -gt 0 ]]; then
+    if command_exists foot; then
+      default_term="foot"
+    else
+      default_term="${detected_terms[0]}"
+    fi
+  fi
+
+  PREFERRED_TERMINAL="$(ask_value "Terminal graphique préféré pour agent-shell" "$default_term")"
+  validate_identifier "Terminal graphique préféré" "$PREFERRED_TERMINAL"
+
+  if ! command_exists "$PREFERRED_TERMINAL"; then
+    warn "Le terminal graphique '$PREFERRED_TERMINAL' n'est pas installé sur l'hôte."
+  fi
+
   WAYLAND_SOCKET="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
 
   print_setup_summary
