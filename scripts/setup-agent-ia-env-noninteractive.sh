@@ -81,18 +81,6 @@ run_step() {
   fi
 }
 
-run_agent_env() {
-  sudo -H -u "$AGENT_USER" env \
-    XDG_RUNTIME_DIR="$AGENT_RUNTIME" \
-    WAYLAND_DISPLAY="$WAYLAND_ALIAS" \
-    XDG_SESSION_TYPE=wayland \
-    HOME="/home/$AGENT_USER" \
-    USER="$AGENT_USER" \
-    LOGNAME="$AGENT_USER" \
-    SHELL=/bin/bash \
-    "$@"
-}
-
 step_install_host_packages() {
   if ! command_exists pacman; then
     err "pacman introuvable. Ce script est prévu pour Arch Linux."
@@ -174,214 +162,19 @@ step_apply_wayland_acl() {
 }
 
 step_create_distrobox() {
-  if run_agent_env distrobox list 2>/dev/null | grep -qE "(^|[[:space:]])$BOX_NAME($|[[:space:]])"; then
+  if run_as_agent distrobox list 2>/dev/null | grep -qE "(^|[[:space:]])$BOX_NAME($|[[:space:]])"; then
     if [[ "$RECREATE_BOX" -eq 1 ]]; then
-      run_agent_env distrobox rm "$BOX_NAME"
+      run_as_agent distrobox rm "$BOX_NAME"
     else
       info "Le Distrobox $BOX_NAME existe déjà. Création ignorée."
       return 0
     fi
   fi
 
-  run_agent_env distrobox create --yes --name "$BOX_NAME" \
+  run_as_agent distrobox create --yes --name "$BOX_NAME" \
     --image "$BOX_IMAGE" \
     --volume "$SHARED_DIR:/Projets:rw" \
     --volume "$WAYLAND_SOCKET:$AGENT_RUNTIME/$WAYLAND_ALIAS"
-}
-
-write_launchers() {
-  local tmp
-
-  tmp="$(_make_temp)"
-  cat > "$tmp" <<'EOF_LAUNCHER'
-#!/usr/bin/env bash
-set -Eeuo pipefail
-
-print_agent_ws_banner() {
-  cat >&2 <<'EOF_BANNER'
-
-███████████▀████████████████████████████████████████████
-██▀▄─██─▄▄▄▄█▄─▄▄─█▄─▀█▄─▄█─▄─▄─█▀▀▀▀▀██▄─█▀▀▀█─▄█─▄▄▄▄█
-██─▀─██─██▄─██─▄█▀██─█▄▀─████─███████████─█─█─█─██▄▄▄▄─█
-▀▄▄▀▄▄▀▄▄▄▄▄▀▄▄▄▄▄▀▄▄▄▀▀▄▄▀▀▄▄▄▀▀▀▀▀▀▀▀▀▀▄▄▄▀▄▄▄▀▀▄▄▄▄▄▀
-
-EOF_BANNER
-}
-print_agent_ws_banner
-
-CONFIG_FILE="/etc/agent-ia-env.conf"
-if [[ ! -r "$CONFIG_FILE" ]]; then
-  echo "Configuration introuvable : $CONFIG_FILE" >&2
-  exit 1
-fi
-
-# shellcheck disable=SC1090
-source "$CONFIG_FILE"
-
-CURRENT_SOCKET="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
-
-# Changer de répertoire si l'utilisateur IA n'a pas les droits de lecture/exécution sur le répertoire courant
-if ! sudo -u "$AGENT_USER" test -x "$PWD" -a -r "$PWD" 2>/dev/null; then
-  cd "${SHARED_DIR:-/}" 2>/dev/null || cd /
-fi
-
-sudo setfacl -m "u:$AGENT_USER:x,m::x" "$XDG_RUNTIME_DIR"
-sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$CURRENT_SOCKET"
-
-exec sudo -H -u "$AGENT_USER" env \
-  XDG_RUNTIME_DIR="$AGENT_RUNTIME" \
-  WAYLAND_DISPLAY="$WAYLAND_ALIAS" \
-  DBUS_SESSION_BUS_ADDRESS="unix:path=$AGENT_RUNTIME/bus" \
-  XDG_SESSION_TYPE=wayland \
-  ELECTRON_OZONE_PLATFORM_HINT=wayland \
-  MOZ_ENABLE_WAYLAND=1 \
-  GDK_BACKEND=wayland \
-  QT_QPA_PLATFORM=wayland \
-  DISPLAY= \
-  HOME="/home/$AGENT_USER" \
-  USER="$AGENT_USER" \
-  LOGNAME="$AGENT_USER" \
-  SHELL=/bin/bash \
-  distrobox enter "$BOX_NAME" "$@"
-EOF_LAUNCHER
-  run_sudo install -m 0755 "$tmp" /usr/local/bin/agent-ia-enter
-
-  tmp="$(_make_temp)"
-  cat > "$tmp" <<'EOF_SHELL'
-#!/usr/bin/env bash
-set -Eeuo pipefail
-
-print_agent_ws_banner() {
-  cat >&2 <<'EOF_BANNER'
-
-███████████▀████████████████████████████████████████████
-██▀▄─██─▄▄▄▄█▄─▄▄─█▄─▀█▄─▄█─▄─▄─█▀▀▀▀▀██▄─█▀▀▀█─▄█─▄▄▄▄█
-██─▀─██─██▄─██─▄█▀██─█▄▀─████─███████████─█─█─█─██▄▄▄▄─█
-▀▄▄▀▄▄▀▄▄▄▄▄▀▄▄▄▄▄▀▄▄▄▀▀▄▄▀▀▄▄▄▀▀▀▀▀▀▀▀▀▀▄▄▄▀▄▄▄▀▀▄▄▄▄▄▀
-
-EOF_BANNER
-}
-print_agent_ws_banner
-
-CONFIG_FILE="/etc/agent-ia-env.conf"
-if [[ ! -r "$CONFIG_FILE" ]]; then
-  echo "Configuration introuvable : $CONFIG_FILE" >&2
-  exit 1
-fi
-
-# shellcheck disable=SC1090
-source "$CONFIG_FILE"
-
-: "${AGENT_USER:?AGENT_USER manquant dans $CONFIG_FILE}"
-: "${AGENT_RUNTIME:?AGENT_RUNTIME manquant dans $CONFIG_FILE}"
-
-CURRENT_SOCKET="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
-
-# Changer de répertoire si l'utilisateur IA n'a pas les droits de lecture/exécution sur le répertoire courant
-if ! sudo -u "$AGENT_USER" test -x "$PWD" -a -r "$PWD" 2>/dev/null; then
-  cd "${SHARED_DIR:-/}" 2>/dev/null || cd /
-fi
-
-sudo setfacl -m "u:$AGENT_USER:x,m::x" "$XDG_RUNTIME_DIR"
-sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$CURRENT_SOCKET"
-
-exec sudo -H -u "$AGENT_USER" env \
-  XDG_RUNTIME_DIR="$AGENT_RUNTIME" \
-  WAYLAND_DISPLAY="$CURRENT_SOCKET" \
-  DBUS_SESSION_BUS_ADDRESS="unix:path=$AGENT_RUNTIME/bus" \
-  XDG_SESSION_TYPE=wayland \
-  HOME="/home/$AGENT_USER" \
-  USER="$AGENT_USER" \
-  LOGNAME="$AGENT_USER" \
-  SHELL=/bin/bash \
-  foot --working-directory="/home/$AGENT_USER" "$@"
-EOF_SHELL
-  run_sudo install -m 0755 "$tmp" /usr/local/bin/agent-shell
-
-  tmp="$(_make_temp)"
-  cat > "$tmp" <<'EOF_RUN'
-#!/usr/bin/env bash
-set -euo pipefail
-
-print_agent_ws_banner() {
-  cat >&2 <<'EOF_BANNER'
-
-███████████▀████████████████████████████████████████████
-██▀▄─██─▄▄▄▄█▄─▄▄─█▄─▀█▄─▄█─▄─▄─█▀▀▀▀▀██▄─█▀▀▀█─▄█─▄▄▄▄█
-██─▀─██─██▄─██─▄█▀██─█▄▀─████─███████████─█─█─█─██▄▄▄▄─█
-▀▄▄▀▄▄▀▄▄▄▄▄▀▄▄▄▄▄▀▄▄▄▀▀▄▄▀▀▄▄▄▀▀▀▀▀▀▀▀▀▀▄▄▄▀▄▄▄▀▀▄▄▄▄▄▀
-
-EOF_BANNER
-}
-print_agent_ws_banner
-
-CONFIG_FILE="/etc/agent-ia-env.conf"
-AGENT_USER=agent
-MAIN_USER="${USER:-hdg}"
-if [[ -r "$CONFIG_FILE" ]]; then
-  # shellcheck disable=SC1090
-  source "$CONFIG_FILE"
-fi
-
-MAIN_UID="$(id -u "$MAIN_USER")"
-AGENT_UID="$(id -u "$AGENT_USER")"
-
-if [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
-  echo "Erreur : la variable WAYLAND_DISPLAY n'est pas définie dans l'environnement actuel." >&2
-  exit 1
-fi
-MAIN_WAYLAND_SOCKET="/run/user/$MAIN_UID/$WAYLAND_DISPLAY"
-if [[ ! -S "$MAIN_WAYLAND_SOCKET" ]]; then
-  echo "Erreur : Le socket Wayland n'existe pas ou n'est pas un socket valide à l'emplacement $MAIN_WAYLAND_SOCKET" >&2
-  exit 1
-fi
-
-# Changer de répertoire si l'utilisateur IA n'a pas les droits de lecture/exécution sur le répertoire courant
-if ! sudo -u "$AGENT_USER" test -x "$PWD" -a -r "$PWD" 2>/dev/null; then
-  cd "${SHARED_DIR:-/}" 2>/dev/null || cd /
-fi
-
-sudo setfacl -m "u:$AGENT_USER:x,m::x" "/run/user/$MAIN_UID"
-sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$MAIN_WAYLAND_SOCKET"
-
-exec sudo -H -u "$AGENT_USER" env \
-  XDG_RUNTIME_DIR="/run/user/$AGENT_UID" \
-  WAYLAND_DISPLAY="$MAIN_WAYLAND_SOCKET" \
-  DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$AGENT_UID/bus" \
-  XDG_SESSION_TYPE=wayland \
-  ELECTRON_OZONE_PLATFORM_HINT=wayland \
-  MOZ_ENABLE_WAYLAND=1 \
-  GDK_BACKEND=wayland \
-  QT_QPA_PLATFORM=wayland \
-  DISPLAY= \
-  HOME="/home/$AGENT_USER" \
-  USER="$AGENT_USER" \
-  LOGNAME="$AGENT_USER" \
-  SHELL=/bin/bash \
-  bash -lc 'exec "$@"' bash "$@"
-EOF_RUN
-  run_sudo install -m 0755 "$tmp" /usr/local/bin/agent-run
-
-  tmp="$(_make_temp)"
-  cat > "$tmp" <<'EOF_AI'
-#!/usr/bin/env bash
-set -euo pipefail
-
-if [ $# -eq 0 ]; then
-  exec agent-ia-enter --no-workdir
-elif [ "$1" = "--bg" ]; then
-  shift
-  if [ $# -eq 0 ]; then
-    echo "Erreur : aucune commande spécifiée après --bg" >&2
-    exit 1
-  fi
-  agent-ia-enter --no-workdir -- "$@" >/dev/null 2>&1 &
-  disown
-else
-  exec agent-ia-enter --no-workdir -- "$@"
-fi
-EOF_AI
-  run_sudo install -m 0755 "$tmp" /usr/local/bin/ai
 }
 
 main() {

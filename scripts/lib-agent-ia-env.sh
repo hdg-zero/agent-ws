@@ -214,3 +214,308 @@ validate_shared_dir_for_deletion() {
   done
 }
 
+write_launchers() {
+  local tmp
+
+  # 1. agent-ia-enter
+  tmp="$(_make_temp)"
+  cat > "$tmp" <<'EOF_LAUNCHER'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+print_agent_ws_banner() {
+  cat >&2 <<'EOF_BANNER'
+
+███████████▀████████████████████████████████████████████
+██▀▄─██─▄▄▄▄█▄─▄▄─█▄─▀█▄─▄█─▄─▄─█▀▀▀▀▀██▄─█▀▀▀█─▄█─▄▄▄▄█
+██─▀─██─██▄─██─▄█▀██─█▄▀─████─███████████─█─█─█─██▄▄▄▄─█
+▀▄▄▀▄▄▀▄▄▄▄▄▀▄▄▄▄▄▀▄▄▄▀▀▄▄▀▀▄▄▄▀▀▀▀▀▀▀▀▀▀▄▄▄▀▄▄▄▀▀▄▄▄▄▄▀
+
+EOF_BANNER
+}
+print_agent_ws_banner
+
+CONFIG_FILE="/etc/agent-ia-env.conf"
+if [[ ! -r "$CONFIG_FILE" ]]; then
+  echo "Configuration introuvable : $CONFIG_FILE" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$CONFIG_FILE"
+
+: "${AGENT_USER:?AGENT_USER manquant dans $CONFIG_FILE}"
+: "${AGENT_RUNTIME:?AGENT_RUNTIME manquant dans $CONFIG_FILE}"
+: "${BOX_NAME:?BOX_NAME manquant dans $CONFIG_FILE}"
+: "${WAYLAND_ALIAS:?WAYLAND_ALIAS manquant dans $CONFIG_FILE}"
+
+if [[ -z "${XDG_RUNTIME_DIR:-}" || -z "${WAYLAND_DISPLAY:-}" ]]; then
+  echo "Ce lanceur doit être exécuté depuis la session Wayland." >&2
+  exit 1
+fi
+
+CURRENT_SOCKET="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
+if [[ ! -S "$CURRENT_SOCKET" ]]; then
+  echo "Socket Wayland introuvable : $CURRENT_SOCKET" >&2
+  exit 1
+fi
+
+# Changer de répertoire si l'utilisateur IA n'a pas les droits de lecture/exécution sur le répertoire courant
+if ! sudo -u "$AGENT_USER" test -x "$PWD" -a -r "$PWD" 2>/dev/null; then
+  cd "${SHARED_DIR:-/}" 2>/dev/null || cd /
+fi
+
+sudo setfacl -m "u:$AGENT_USER:x,m::x" "$XDG_RUNTIME_DIR"
+sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$CURRENT_SOCKET"
+
+exec sudo -H -u "$AGENT_USER" env \
+  XDG_RUNTIME_DIR="$AGENT_RUNTIME" \
+  WAYLAND_DISPLAY="$WAYLAND_ALIAS" \
+  DBUS_SESSION_BUS_ADDRESS="unix:path=$AGENT_RUNTIME/bus" \
+  XDG_SESSION_TYPE=wayland \
+  ELECTRON_OZONE_PLATFORM_HINT=wayland \
+  MOZ_ENABLE_WAYLAND=1 \
+  GDK_BACKEND=wayland \
+  QT_QPA_PLATFORM=wayland \
+  DISPLAY= \
+  HOME="/home/$AGENT_USER" \
+  USER="$AGENT_USER" \
+  LOGNAME="$AGENT_USER" \
+  SHELL=/bin/bash \
+  distrobox enter "$BOX_NAME" "$@"
+EOF_LAUNCHER
+  run_sudo install -m 0755 "$tmp" /usr/local/bin/agent-ia-enter
+
+  # 2. agent-shell
+  tmp="$(_make_temp)"
+  cat > "$tmp" <<'EOF_SHELL'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+print_agent_ws_banner() {
+  cat >&2 <<'EOF_BANNER'
+
+███████████▀████████████████████████████████████████████
+██▀▄─██─▄▄▄▄█▄─▄▄─█▄─▀█▄─▄█─▄─▄─█▀▀▀▀▀██▄─█▀▀▀█─▄█─▄▄▄▄█
+██─▀─██─██▄─██─▄█▀██─█▄▀─████─███████████─█─█─█─██▄▄▄▄─█
+▀▄▄▀▄▄▀▄▄▄▄▄▀▄▄▄▄▄▀▄▄▄▀▀▄▄▀▀▄▄▄▀▀▀▀▀▀▀▀▀▀▄▄▄▀▄▄▄▀▀▄▄▄▄▄▀
+
+EOF_BANNER
+}
+print_agent_ws_banner
+
+CONFIG_FILE="/etc/agent-ia-env.conf"
+if [[ ! -r "$CONFIG_FILE" ]]; then
+  echo "Configuration introuvable : $CONFIG_FILE" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$CONFIG_FILE"
+
+: "${AGENT_USER:?AGENT_USER manquant dans $CONFIG_FILE}"
+: "${AGENT_RUNTIME:?AGENT_RUNTIME manquant dans $CONFIG_FILE}"
+
+if [[ -z "${XDG_RUNTIME_DIR:-}" || -z "${WAYLAND_DISPLAY:-}" ]]; then
+  echo "Ce lanceur doit être exécuté depuis la session Wayland." >&2
+  exit 1
+fi
+
+CURRENT_SOCKET="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
+if [[ ! -S "$CURRENT_SOCKET" ]]; then
+  echo "Socket Wayland introuvable : $CURRENT_SOCKET" >&2
+  exit 1
+fi
+
+# Changer de répertoire si l'utilisateur IA n'a pas les droits de lecture/exécution sur le répertoire courant
+if ! sudo -u "$AGENT_USER" test -x "$PWD" -a -r "$PWD" 2>/dev/null; then
+  cd "${SHARED_DIR:-/}" 2>/dev/null || cd /
+fi
+
+sudo setfacl -m "u:$AGENT_USER:x,m::x" "$XDG_RUNTIME_DIR"
+sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$CURRENT_SOCKET"
+
+exec sudo -H -u "$AGENT_USER" env \
+  XDG_RUNTIME_DIR="$AGENT_RUNTIME" \
+  WAYLAND_DISPLAY="$CURRENT_SOCKET" \
+  DBUS_SESSION_BUS_ADDRESS="unix:path=$AGENT_RUNTIME/bus" \
+  XDG_SESSION_TYPE=wayland \
+  HOME="/home/$AGENT_USER" \
+  USER="$AGENT_USER" \
+  LOGNAME="$AGENT_USER" \
+  SHELL=/bin/bash \
+  foot --working-directory="/home/$AGENT_USER" "$@"
+EOF_SHELL
+  run_sudo install -m 0755 "$tmp" /usr/local/bin/agent-shell
+
+  # 3. agent-run
+  tmp="$(_make_temp)"
+  cat > "$tmp" <<'EOF_RUN'
+#!/usr/bin/env bash
+set -euo pipefail
+
+print_agent_ws_banner() {
+  cat >&2 <<'EOF_BANNER'
+
+███████████▀████████████████████████████████████████████
+██▀▄─██─▄▄▄▄█▄─▄▄─█▄─▀█▄─▄█─▄─▄─█▀▀▀▀▀██▄─█▀▀▀█─▄█─▄▄▄▄█
+██─▀─██─██▄─██─▄█▀██─█▄▀─████─███████████─█─█─█─██▄▄▄▄─█
+▀▄▄▀▄▄▀▄▄▄▄▄▀▄▄▄▄▄▀▄▄▄▀▀▄▄▀▀▄▄▄▀▀▀▀▀▀▀▀▀▀▄▄▄▀▄▄▄▀▀▄▄▄▄▄▀
+
+EOF_BANNER
+}
+print_agent_ws_banner
+
+CONFIG_FILE="/etc/agent-ia-env.conf"
+AGENT_USER=agent
+MAIN_USER="${USER:-hdg}"
+if [[ -r "$CONFIG_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$CONFIG_FILE"
+fi
+
+MAIN_UID="$(id -u "$MAIN_USER")"
+AGENT_UID="$(id -u "$AGENT_USER")"
+
+if [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
+  echo "Erreur : la variable WAYLAND_DISPLAY n'est pas définie dans l'environnement actuel." >&2
+  exit 1
+fi
+MAIN_WAYLAND_SOCKET="/run/user/$MAIN_UID/$WAYLAND_DISPLAY"
+if [[ ! -S "$MAIN_WAYLAND_SOCKET" ]]; then
+  echo "Erreur : Le socket Wayland n'existe pas ou n'est pas un socket valide à l'emplacement $MAIN_WAYLAND_SOCKET" >&2
+  exit 1
+fi
+
+# Changer de répertoire si l'utilisateur IA n'a pas les droits de lecture/exécution sur le répertoire courant
+if ! sudo -u "$AGENT_USER" test -x "$PWD" -a -r "$PWD" 2>/dev/null; then
+  cd "${SHARED_DIR:-/}" 2>/dev/null || cd /
+fi
+
+sudo setfacl -m "u:$AGENT_USER:x,m::x" "/run/user/$MAIN_UID"
+sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$MAIN_WAYLAND_SOCKET"
+
+exec sudo -H -u "$AGENT_USER" env \
+  XDG_RUNTIME_DIR="/run/user/$AGENT_UID" \
+  WAYLAND_DISPLAY="$MAIN_WAYLAND_SOCKET" \
+  DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$AGENT_UID/bus" \
+  XDG_SESSION_TYPE=wayland \
+  ELECTRON_OZONE_PLATFORM_HINT=wayland \
+  MOZ_ENABLE_WAYLAND=1 \
+  GDK_BACKEND=wayland \
+  QT_QPA_PLATFORM=wayland \
+  DISPLAY= \
+  HOME="/home/$AGENT_USER" \
+  USER="$AGENT_USER" \
+  LOGNAME="$AGENT_USER" \
+  SHELL=/bin/bash \
+  bash -lc 'exec "$@"' bash "$@"
+EOF_RUN
+  run_sudo install -m 0755 "$tmp" /usr/local/bin/agent-run
+
+  # 4. ai
+  tmp="$(_make_temp)"
+  cat > "$tmp" <<'EOF_AI'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ $# -eq 0 ]; then
+  exec agent-ia-enter --no-workdir
+elif [ "$1" = "--bg" ]; then
+  shift
+  if [ $# -eq 0 ]; then
+    echo "Erreur : aucune commande spécifiée après --bg" >&2
+    exit 1
+  fi
+  agent-ia-enter --no-workdir -- "$@" >/dev/null 2>&1 &
+  disown
+else
+  exec agent-ia-enter --no-workdir -- "$@"
+fi
+EOF_AI
+  run_sudo install -m 0755 "$tmp" /usr/local/bin/ai
+  rm -f "$tmp"
+}
+
+uninstall_prepare_runtime() {
+  if ! id "$AGENT_USER" >/dev/null 2>&1; then
+    warn "L'utilisateur $AGENT_USER n'existe pas. Certaines étapes seront ignorées."
+    return 0
+  fi
+
+  AGENT_UID="$(id -u "$AGENT_USER")"
+  AGENT_RUNTIME="/run/user/$AGENT_UID"
+  if [[ ! -d "$AGENT_RUNTIME" ]]; then
+    run_sudo install -d -m 700 -o "$AGENT_USER" -g "$AGENT_USER" "$AGENT_RUNTIME" || true
+  fi
+}
+
+uninstall_terminate_agent_user() {
+  run_sudo loginctl terminate-user "$AGENT_USER" || true
+  run_sudo pkill -u "$AGENT_USER" || true
+}
+
+uninstall_remove_distrobox() {
+  run_as_agent distrobox stop "$BOX_NAME" || true
+  run_as_agent distrobox rm "$BOX_NAME" || true
+}
+
+uninstall_remove_launchers() {
+  run_sudo rm -f /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai
+}
+
+uninstall_remove_wayland_acl() {
+  local current_socket source_socket
+  current_socket=""
+  if [[ -n "${XDG_RUNTIME_DIR:-}" && -n "${WAYLAND_DISPLAY:-}" ]]; then
+    current_socket="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
+  fi
+  source_socket="${WAYLAND_SOURCE_SOCKET:-$current_socket}"
+  if [[ -z "$source_socket" && -z "$current_socket" ]]; then
+    warn "Aucun socket Wayland connu. Retrait des ACL Wayland ignoré."
+    return 0
+  fi
+  if [[ -n "$source_socket" && -e "$source_socket" ]]; then
+    run_sudo setfacl -x "u:$AGENT_USER" "$source_socket" || true
+  fi
+  if [[ -n "$current_socket" && "$current_socket" != "$source_socket" && -e "$current_socket" ]]; then
+    run_sudo setfacl -x "u:$AGENT_USER" "$current_socket" || true
+  fi
+  if [[ -n "${XDG_RUNTIME_DIR:-}" && -d "$XDG_RUNTIME_DIR" ]]; then
+    run_sudo setfacl -x "u:$AGENT_USER" "$XDG_RUNTIME_DIR" || true
+  fi
+}
+
+uninstall_remove_config() {
+  run_sudo rm -f "$CONFIG_FILE"
+}
+
+uninstall_remove_shared_dir() {
+  run_sudo rm -rf --one-file-system "$SHARED_DIR"
+}
+
+uninstall_disable_linger() {
+  run_sudo loginctl disable-linger "$AGENT_USER" || true
+}
+
+uninstall_remove_agent_user() {
+  uninstall_terminate_agent_user
+  run_sudo userdel -r "$AGENT_USER"
+}
+
+uninstall_remove_agent_runtime() {
+  if [[ -n "${AGENT_RUNTIME:-}" ]]; then
+    run_sudo rm -rf --one-file-system "$AGENT_RUNTIME" || true
+  fi
+}
+
+uninstall_remove_subids() {
+  run_sudo sed -i "/^$AGENT_USER:/d" /etc/subuid
+  run_sudo sed -i "/^$AGENT_USER:/d" /etc/subgid
+}
+
+uninstall_remove_group() {
+  run_sudo groupdel "$SHARED_GROUP"
+}
+
+

@@ -117,81 +117,18 @@ has_requested_action() {
     || [[ "$REMOVE_GROUP" -eq 1 ]]
 }
 
-prepare_runtime() {
-  if ! id "$AGENT_USER" >/dev/null 2>&1; then
-    return 0
-  fi
-  AGENT_UID="$(id -u "$AGENT_USER")"
-  AGENT_RUNTIME="/run/user/$AGENT_UID"
-}
-
-remove_box() {
-  run_as_agent distrobox stop "$BOX_NAME" || true
-  run_as_agent distrobox rm "$BOX_NAME" || true
-}
-
-remove_launchers() {
-  run_sudo rm -f /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai
-}
-
-remove_wayland_acl() {
-  local current_socket source_socket
-  current_socket=""
-  if [[ -n "${XDG_RUNTIME_DIR:-}" && -n "${WAYLAND_DISPLAY:-}" ]]; then
-    current_socket="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
-  fi
-  source_socket="${WAYLAND_SOURCE_SOCKET:-$current_socket}"
-  if [[ -z "$source_socket" && -z "$current_socket" ]]; then
-    warn "Aucun socket Wayland connu. Retrait des ACL Wayland ignoré."
-    return 0
-  fi
-  if [[ -n "$source_socket" && -e "$source_socket" ]]; then
-    run_sudo setfacl -x "u:$AGENT_USER" "$source_socket" || true
-  fi
-  if [[ -n "$current_socket" && "$current_socket" != "$source_socket" && -e "$current_socket" ]]; then
-    run_sudo setfacl -x "u:$AGENT_USER" "$current_socket" || true
-  fi
-  if [[ -n "${XDG_RUNTIME_DIR:-}" && -d "$XDG_RUNTIME_DIR" ]]; then
-    run_sudo setfacl -x "u:$AGENT_USER" "$XDG_RUNTIME_DIR" || true
-  fi
-}
-
-remove_config() {
-  run_sudo rm -f "$CONFIG_FILE"
-}
-
-remove_shared_dir() {
-  run_sudo rm -rf --one-file-system "$SHARED_DIR"
-}
-
-disable_linger() {
-  run_sudo loginctl disable-linger "$AGENT_USER" || true
-}
-
-terminate_agent_user() {
-  run_sudo loginctl terminate-user "$AGENT_USER" || true
-  run_sudo pkill -u "$AGENT_USER" || true
-}
-
-remove_agent_user() {
-  terminate_agent_user
-  run_sudo userdel -r "$AGENT_USER"
-}
-
-remove_agent_runtime() {
-  if [[ -n "${AGENT_RUNTIME:-}" ]]; then
-    run_sudo rm -rf --one-file-system "$AGENT_RUNTIME" || true
-  fi
-}
-
-remove_subids() {
-  run_sudo sed -i "/^$AGENT_USER:/d" /etc/subuid
-  run_sudo sed -i "/^$AGENT_USER:/d" /etc/subgid
-}
-
-remove_group() {
-  run_sudo groupdel "$SHARED_GROUP"
-}
+prepare_runtime() { uninstall_prepare_runtime; }
+remove_box() { uninstall_remove_distrobox; }
+remove_launchers() { uninstall_remove_launchers; }
+remove_wayland_acl() { uninstall_remove_wayland_acl; }
+remove_config() { uninstall_remove_config; }
+remove_shared_dir() { uninstall_remove_shared_dir; }
+disable_linger() { uninstall_disable_linger; }
+terminate_agent_user() { uninstall_terminate_agent_user; }
+remove_agent_user() { uninstall_remove_agent_user; }
+remove_agent_runtime() { uninstall_remove_agent_runtime; }
+remove_subids() { uninstall_remove_subids; }
+remove_group() { uninstall_remove_group; }
 
 main() {
   require_not_root

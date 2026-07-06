@@ -9,82 +9,18 @@ source "$SCRIPT_DIR/lib-agent-ia-env.sh"
 
 CONFIG_FILE="/etc/agent-ia-env.conf"
 
-step_prepare_runtime() {
-  if ! id "$AGENT_USER" >/dev/null 2>&1; then
-    warn "L'utilisateur $AGENT_USER n'existe pas. Certaines étapes seront ignorées."
-    return 0
-  fi
-
-  AGENT_UID="$(id -u "$AGENT_USER")"
-  AGENT_RUNTIME="/run/user/$AGENT_UID"
-  if [[ ! -d "$AGENT_RUNTIME" ]]; then
-    run_sudo install -d -m 700 -o "$AGENT_USER" -g "$AGENT_USER" "$AGENT_RUNTIME" || true
-  fi
-}
-
-step_terminate_agent_user() {
-  run_sudo loginctl terminate-user "$AGENT_USER" || true
-  run_sudo pkill -u "$AGENT_USER" || true
-}
-
-step_remove_distrobox() {
-  run_as_agent distrobox stop "$BOX_NAME" || true
-  run_as_agent distrobox rm "$BOX_NAME" || true
-}
-
-step_remove_launchers() {
-  run_sudo rm -f /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai
-}
-
-step_remove_wayland_acl() {
-  local current_socket source_socket
-  current_socket=""
-  if [[ -n "${XDG_RUNTIME_DIR:-}" && -n "${WAYLAND_DISPLAY:-}" ]]; then
-    current_socket="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
-  fi
-  source_socket="${WAYLAND_SOURCE_SOCKET:-$current_socket}"
-  if [[ -n "$source_socket" && -e "$source_socket" ]]; then
-    run_sudo setfacl -x "u:$AGENT_USER" "$source_socket" || true
-  fi
-  if [[ -n "$current_socket" && "$current_socket" != "$source_socket" && -e "$current_socket" ]]; then
-    run_sudo setfacl -x "u:$AGENT_USER" "$current_socket" || true
-  fi
-  if [[ -n "${XDG_RUNTIME_DIR:-}" && -d "$XDG_RUNTIME_DIR" ]]; then
-    run_sudo setfacl -x "u:$AGENT_USER" "$XDG_RUNTIME_DIR" || true
-  fi
-}
-
-step_remove_config() {
-  run_sudo rm -f "$CONFIG_FILE"
-}
-
-step_remove_shared_dir() {
-  run_sudo rm -rf --one-file-system "$SHARED_DIR"
-}
-
-step_disable_linger() {
-  run_sudo loginctl disable-linger "$AGENT_USER" || true
-}
-
-step_remove_agent_user() {
-  step_terminate_agent_user
-  run_sudo userdel -r "$AGENT_USER"
-}
-
-step_remove_agent_runtime() {
-  if [[ -n "${AGENT_RUNTIME:-}" ]]; then
-    run_sudo rm -rf --one-file-system "$AGENT_RUNTIME" || true
-  fi
-}
-
-step_remove_subids() {
-  run_sudo sed -i "/^$AGENT_USER:/d" /etc/subuid
-  run_sudo sed -i "/^$AGENT_USER:/d" /etc/subgid
-}
-
-step_remove_group() {
-  run_sudo groupdel "$SHARED_GROUP"
-}
+step_prepare_runtime() { uninstall_prepare_runtime; }
+step_terminate_agent_user() { uninstall_terminate_agent_user; }
+step_remove_distrobox() { uninstall_remove_distrobox; }
+step_remove_launchers() { uninstall_remove_launchers; }
+step_remove_wayland_acl() { uninstall_remove_wayland_acl; }
+step_remove_config() { uninstall_remove_config; }
+step_remove_shared_dir() { uninstall_remove_shared_dir; }
+step_disable_linger() { uninstall_disable_linger; }
+step_remove_agent_user() { uninstall_remove_agent_user; }
+step_remove_agent_runtime() { uninstall_remove_agent_runtime; }
+step_remove_subids() { uninstall_remove_subids; }
+step_remove_group() { uninstall_remove_group; }
 
 main() {
   require_not_root
