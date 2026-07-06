@@ -21,7 +21,7 @@ This launcher:
 agent-shell
 ```
 
-The script opens a `foot` terminal under the identity of the AI account directly from the main account's graphical session.
+The script opens the preferred graphical terminal (configured or automatically detected, such as `foot`, `alacritty`, `kitty`, etc.) under the identity of the AI account directly from the main account's graphical session.
 
 ### Run a host command as the AI user
 

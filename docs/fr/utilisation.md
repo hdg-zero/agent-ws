@@ -21,7 +21,7 @@ Ce lanceur :
 agent-shell
 ```
 
-Le script ouvre un terminal `foot` avec l'identité du compte IA depuis la session graphique du compte principal.
+Le script ouvre le terminal graphique préféré (configuré ou détecté automatiquement, par exemple `foot`, `alacritty`, `kitty`, etc.) sous l'identité du compte IA depuis la session graphique du compte principal.
 
 ### Exécuter une commande hôte comme utilisateur IA
 

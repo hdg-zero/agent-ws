@@ -206,7 +206,7 @@ main() {
 
   AGENT_UID="${AGENT_UID:-}"
   AGENT_RUNTIME="${AGENT_RUNTIME:-}"
-  WAYLAND_SOCKET="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
+  WAYLAND_SOCKET="${WAYLAND_SOCKET:-}"
 
   print_agent_ws_banner
   info "Démarrage de l'installation non interactive."

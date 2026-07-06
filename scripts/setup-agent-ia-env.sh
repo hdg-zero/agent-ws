@@ -165,7 +165,7 @@ main() {
     warn "Le terminal graphique '$PREFERRED_TERMINAL' n'est pas installé sur l'hôte."
   fi
 
-  WAYLAND_SOCKET="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
+  WAYLAND_SOCKET="${WAYLAND_SOCKET:-}"
 
   print_setup_summary
   ask_yes_no "Continuer avec cette configuration ?" "y" || exit 0

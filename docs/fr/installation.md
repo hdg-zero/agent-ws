@@ -134,11 +134,15 @@ Exemple avec options :
 
 Options utiles :
 
+- `--preferred-terminal NAME` : spécifie le terminal préféré (par exemple `foot`, `alacritty`, `kitty`, etc.).
 - `--recreate-box`
 - `--skip-host-packages`
 - `--skip-launchers`
 - `--skip-subids`
 - `--skip-agent-runtime`
+
+### Support du mode sans tête (Headless)
+Le script de configuration détecte automatiquement la présence d'une session Wayland. Si aucune session n'est détectée (par exemple lors d'une installation sur un serveur sans tête via SSH ou un outil d'automatisation/provisioning), le script n'échoue plus. Il bascule automatiquement en mode CLI pure : la création de la Distrobox s'effectue sans montage de socket graphique et les étapes d'ACL Wayland sont passées avec un simple avertissement.
 
 ## Ce que fait le script
 

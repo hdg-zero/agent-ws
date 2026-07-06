@@ -134,11 +134,15 @@ Example with options:
 
 Useful options:
 
+- `--preferred-terminal NAME`: specifies the preferred terminal emulator (e.g. `foot`, `alacritty`, `kitty`, etc.).
 - `--recreate-box`
 - `--skip-host-packages`
 - `--skip-launchers`
 - `--skip-subids`
 - `--skip-agent-runtime`
+
+### Headless execution support
+The setup script automatically detects the presence of a Wayland session. If no Wayland session is active (for example during an installation on a headless server via SSH or provisioning/automation tools), the script no longer crashes. It automatically falls back to CLI-only mode: the Distrobox container is created without mounting graphical sockets, and Wayland ACL steps are skipped with a warning message.
 
 ## What the script does
 
