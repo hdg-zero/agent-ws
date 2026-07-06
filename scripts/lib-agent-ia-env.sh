@@ -204,14 +204,22 @@ Terminal préféré     : $PREFERRED_TERMINAL
 EOF_SUM
 }
 
-# Valide qu'un dossier partagé n'est pas un répertoire système critique avant suppression.
+# Valide qu'un dossier partagé n'est pas un répertoire système critique ou utilisateur avant suppression.
 validate_shared_dir_for_deletion() {
   local value="$1"
   validate_path "Dossier partagé" "$value"
   local blacklisted=( "/" "/home" "/usr" "/var" "/etc" "/bin" "/lib" "/boot" "/root" "/sys" "/proc" "/dev" "/run" )
+
+  if [[ -n "${MAIN_USER:-}" ]]; then
+    blacklisted+=( "/home/$MAIN_USER" "/home/$MAIN_USER/" )
+  fi
+  if [[ -n "${AGENT_USER:-}" ]]; then
+    blacklisted+=( "/home/$AGENT_USER" "/home/$AGENT_USER/" )
+  fi
+
   for path in "${blacklisted[@]}"; do
     if [[ "$value" == "$path" || "$value" == "$path/" ]]; then
-      err "Suppression interdite pour le répertoire système critique : $value"
+      err "Suppression interdite pour le répertoire système critique ou utilisateur : $value"
       exit 1
     fi
   done
