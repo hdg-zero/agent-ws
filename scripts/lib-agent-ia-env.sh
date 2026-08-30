@@ -497,6 +497,89 @@ fi
 EOF_AI
   run_sudo install -m 0755 "$tmp" /usr/local/bin/ai
   rm -f "$tmp"
+
+  # 5. agent-stop
+  tmp="$(_make_temp)"
+  cat > "$tmp" <<'EOF_STOP'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+print_agent_ws_banner() {
+  cat >&2 <<'EOF_BANNER'
+
+███████████▀████████████████████████████████████████████
+██▀▄─██─▄▄▄▄█▄─▄▄─█▄─▀█▄─▄█─▄─▄─█▀▀▀▀▀██▄─█▀▀▀█─▄█─▄▄▄▄█
+██─▀─██─██▄─██─▄█▀██─█▄▀─████─███████████─█─█─█─██▄▄▄▄─█
+▀▄▄▀▄▄▀▄▄▄▄▄▀▄▄▄▄▄▀▄▄▄▀▀▄▄▀▀▄▄▄▀▀▀▀▀▀▀▀▀▀▄▄▄▀▄▄▄▀▀▄▄▄▄▄▀
+
+EOF_BANNER
+}
+
+usage() {
+  cat <<'EOF_USAGE'
+Usage: agent-stop [options]
+
+Arrête le conteneur Distrobox, les processus et la session de l'utilisateur IA.
+
+Options:
+  --box-only       Arrête uniquement le conteneur Distrobox
+  --session-only   Ferme uniquement les processus et la session utilisateur systemd
+  -h, --help       Affiche cette aide
+EOF_USAGE
+}
+
+BOX_ONLY=0
+SESSION_ONLY=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --box-only) BOX_ONLY=1; shift ;;
+    --session-only) SESSION_ONLY=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "Option inconnue : $1" >&2; usage; exit 1 ;;
+  esac
+done
+
+if [[ "$BOX_ONLY" -eq 1 && "$SESSION_ONLY" -eq 1 ]]; then
+  echo "Erreur : --box-only et --session-only sont mutuellement exclusives." >&2
+  exit 1
+fi
+
+print_agent_ws_banner
+
+CONFIG_FILE="/etc/agent-ia-env.conf"
+if [[ ! -r "$CONFIG_FILE" ]]; then
+  echo "Configuration introuvable : $CONFIG_FILE" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$CONFIG_FILE"
+
+: "${AGENT_USER:?AGENT_USER manquant dans $CONFIG_FILE}"
+: "${BOX_NAME:?BOX_NAME manquant dans $CONFIG_FILE}"
+
+echo "Arrêt de l'environnement IA ($AGENT_USER)..."
+
+if [[ "$SESSION_ONLY" -eq 0 ]]; then
+  if command -v distrobox >/dev/null 2>&1; then
+    echo "- Arrêt du conteneur Distrobox '$BOX_NAME'..."
+    sudo -u "$AGENT_USER" distrobox stop -Y "$BOX_NAME" 2>/dev/null || true
+  fi
+fi
+
+if [[ "$BOX_ONLY" -eq 0 ]]; then
+  echo "- Fermeture des processus résiduels pour l'utilisateur $AGENT_USER..."
+  sudo pkill -u "$AGENT_USER" 2>/dev/null || true
+
+  echo "- Clôture de la session systemd ($AGENT_USER)..."
+  sudo loginctl terminate-user "$AGENT_USER" 2>/dev/null || true
+fi
+
+echo "✓ Environnement IA arrêté."
+EOF_STOP
+  run_sudo install -m 0755 "$tmp" /usr/local/bin/agent-stop
+  rm -f "$tmp"
 }
 
 uninstall_prepare_runtime() {
@@ -523,7 +606,7 @@ uninstall_remove_distrobox() {
 }
 
 uninstall_remove_launchers() {
-  run_sudo rm -f /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai
+  run_sudo rm -f /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai /usr/local/bin/agent-stop
 }
 
 uninstall_remove_wayland_acl() {

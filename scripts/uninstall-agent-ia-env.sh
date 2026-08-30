@@ -57,7 +57,7 @@ EOF
     fi
   fi
 
-  if ask_yes_no "Supprimer les lanceurs /usr/local/bin/agent-ia-enter, /usr/local/bin/agent-shell, /usr/local/bin/agent-run et /usr/local/bin/ai ?" "y"; then
+  if ask_yes_no "Supprimer les lanceurs /usr/local/bin/agent-ia-enter, /usr/local/bin/agent-shell, /usr/local/bin/agent-run, /usr/local/bin/ai et /usr/local/bin/agent-stop ?" "y"; then
     step_remove_launchers
   fi
 
@@ -121,7 +121,7 @@ EOF
   getent passwd $AGENT_USER
   getent group $SHARED_GROUP
   ls -ld $SHARED_DIR
-  ls -l /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai
+  ls -l /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai /usr/local/bin/agent-stop
 
 Les paquets hôte podman, distrobox et acl ne sont pas désinstallés automatiquement, car ils peuvent être utilisés par autre chose.
 EOF
