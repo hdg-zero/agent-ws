@@ -43,6 +43,24 @@ Example:
 ai foot --working-directory=/home/agent
 ```
 
+### Stop the container and AI session
+
+```bash
+agent-stop
+```
+
+This launcher cleanly terminates the AI environment in multiple steps:
+
+1. stops the Distrobox container (`distrobox stop -Y <box-name>`);
+2. terminates remaining processes owned by the AI user (`pkill -u <agent-user>`);
+3. closes the systemd user session (`loginctl terminate-user <agent-user>`).
+
+Available options:
+
+- `agent-stop --box-only`: only stops the Distrobox container without terminating the host user session;
+- `agent-stop --session-only`: only terminates the systemd session and remaining processes without explicitly calling Distrobox stop;
+- `agent-stop --help`: displays help.
+
 ## Recommended working directory
 
 Inside the container, work in:

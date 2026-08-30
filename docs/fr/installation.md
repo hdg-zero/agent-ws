@@ -246,6 +246,7 @@ Le script écrit :
 - `/usr/local/bin/agent-shell`
 - `/usr/local/bin/agent-run`
 - `/usr/local/bin/ai`
+- `/usr/local/bin/agent-stop`
 
 ## Installation manuelle des outils dans le conteneur
 

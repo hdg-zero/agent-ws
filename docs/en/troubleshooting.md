@@ -148,7 +148,7 @@ If trials have left too much intermediate state, the most reliable way is to del
 ```bash
 sudo loginctl terminate-user agent 2>/dev/null || true
 sudo pkill -u agent 2>/dev/null || true
-sudo rm -f /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai /etc/agent-ia-env.conf
+sudo rm -f /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai /usr/local/bin/agent-stop /etc/agent-ia-env.conf
 sudo loginctl disable-linger agent 2>/dev/null || true
 sudo userdel -r agent
 sudo rm -rf /home/agent /run/user/1001

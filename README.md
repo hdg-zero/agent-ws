@@ -51,6 +51,7 @@ Après installation, on obtient :
 - un lanceur `agent-shell` pour ouvrir un terminal graphique en tant que compte IA ;
 - un lanceur `agent-run` pour exécuter une commande hôte comme compte IA ;
 - un raccourci `ai` équivalent à `agent-run` ;
+- un lanceur `agent-stop` pour arrêter le conteneur Distrobox et la session de l'utilisateur IA ;
 - une séparation raisonnablement forte entre `/home/<utilisateur-principal>` et l'environnement IA.
 
 ## Parcours recommandé

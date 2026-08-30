@@ -43,6 +43,24 @@ Exemple :
 ai foot --working-directory=/home/agent
 ```
 
+### Arrêter le conteneur et la session IA
+
+```bash
+agent-stop
+```
+
+Ce lanceur arrête proprement l'environnement IA en plusieurs étapes :
+
+1. arrête le conteneur Distrobox (`distrobox stop -Y <box-name>`) ;
+2. termine les processus résiduels de l'utilisateur IA (`pkill -u <agent-user>`) ;
+3. clôture la session utilisateur systemd (`loginctl terminate-user <agent-user>`).
+
+Options disponibles :
+
+- `agent-stop --box-only` : arrête uniquement le conteneur Distrobox sans fermer la session utilisateur hôte ;
+- `agent-stop --session-only` : ferme uniquement la session systemd et les processus résiduels sans appeler l'arrêt explicite de Distrobox ;
+- `agent-stop --help` : affiche l'aide.
+
 ## Répertoire de travail recommandé
 
 Dans le conteneur, travaille dans :
