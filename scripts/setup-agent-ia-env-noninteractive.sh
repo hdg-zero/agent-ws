@@ -32,6 +32,8 @@ Options:
   --wayland-alias NAME
   --preferred-terminal NAME
   --recreate-box
+  --update             Met à jour les lanceurs, umask 0002 et la config sur une installation existante
+  --launchers-only     Installe ou met à jour uniquement les lanceurs
   --skip-host-packages
   --skip-agent-user
   --skip-shared-dir
@@ -45,6 +47,7 @@ Options:
 EOF
 }
 
+# shellcheck disable=SC2034
 parse_args() {
   set_default_setup_values
   while [[ $# -gt 0 ]]; do
@@ -58,6 +61,30 @@ parse_args() {
       --wayland-alias) WAYLAND_ALIAS="$2"; shift 2 ;;
       --preferred-terminal) PREFERRED_TERMINAL="$2"; shift 2 ;;
       --recreate-box) RECREATE_BOX=1; shift ;;
+      --update)
+        INSTALL_HOST_PACKAGES=0
+        SETUP_AGENT_USER=1
+        SETUP_SHARED_DIR=0
+        PROTECT_MAIN_HOME=0
+        ENSURE_SUBIDS=0
+        PREPARE_AGENT_RUNTIME=0
+        APPLY_WAYLAND_ACL=0
+        CREATE_DISTROBOX=0
+        INSTALL_LAUNCHERS=1
+        shift
+        ;;
+      --launchers-only)
+        INSTALL_HOST_PACKAGES=0
+        SETUP_AGENT_USER=0
+        SETUP_SHARED_DIR=0
+        PROTECT_MAIN_HOME=0
+        ENSURE_SUBIDS=0
+        PREPARE_AGENT_RUNTIME=0
+        APPLY_WAYLAND_ACL=0
+        CREATE_DISTROBOX=0
+        INSTALL_LAUNCHERS=1
+        shift
+        ;;
       --skip-host-packages) INSTALL_HOST_PACKAGES=0; shift ;;
       --skip-agent-user) SETUP_AGENT_USER=0; shift ;;
       --skip-shared-dir) SETUP_SHARED_DIR=0; shift ;;
@@ -83,110 +110,8 @@ run_step() {
   fi
 }
 
-step_install_host_packages() {
-  if ! command_exists pacman; then
-    err "pacman introuvable. Ce script est prévu pour Arch Linux."
-    exit 1
-  fi
-  run_sudo pacman -S --needed podman distrobox acl fuse-overlayfs slirp4netns passt
-}
-
-step_ensure_agent_user() {
-  if id "$AGENT_USER" >/dev/null 2>&1; then
-    info "L'utilisateur $AGENT_USER existe déjà."
-  else
-    run_sudo useradd -m -s /bin/bash "$AGENT_USER"
-    run_sudo passwd -l "$AGENT_USER" || true
-  fi
-}
-
-step_setup_shared_dir() {
-  if getent group "$SHARED_GROUP" >/dev/null 2>&1; then
-    info "Le groupe $SHARED_GROUP existe déjà."
-  else
-    run_sudo groupadd "$SHARED_GROUP"
-  fi
-
-  run_sudo usermod -aG "$SHARED_GROUP" "$MAIN_USER"
-  run_sudo usermod -aG "$SHARED_GROUP" "$AGENT_USER"
-  run_sudo mkdir -p "$SHARED_DIR"
-  run_sudo chown root:"$SHARED_GROUP" "$SHARED_DIR"
-  run_sudo chmod 2770 "$SHARED_DIR"
-  run_sudo setfacl -m "g:$SHARED_GROUP:rwx" "$SHARED_DIR"
-  run_sudo setfacl -d -m "g:$SHARED_GROUP:rwx" "$SHARED_DIR"
-  run_sudo setfacl -d -m "m::rwx" "$SHARED_DIR"
-}
-
-step_protect_main_home() {
-  run_sudo chmod 700 "/home/$MAIN_USER"
-  if sudo -H -u "$AGENT_USER" ls "/home/$MAIN_USER" >/dev/null 2>&1; then
-    err "$AGENT_USER peut encore lire /home/$MAIN_USER après chmod 700."
-    exit 1
-  fi
-}
-
-step_ensure_subids() {
-  local start end
-
-  if grep -q "^$AGENT_USER:" /etc/subuid && grep -q "^$AGENT_USER:" /etc/subgid; then
-    info "Entrées SubUID/SubGID déjà présentes pour $AGENT_USER."
-    return 0
-  fi
-
-  run_sudo sed -i "/^$AGENT_USER:/d" /etc/subuid
-  run_sudo sed -i "/^$AGENT_USER:/d" /etc/subgid
-  start="$(pick_free_subid_start)"
-  end=$((start + 65535))
-  run_sudo usermod --add-subuids "$start-$end" --add-subgids "$start-$end" "$AGENT_USER"
-}
-
-step_prepare_agent_runtime() {
-  local tries=0
-
-  AGENT_UID="$(id -u "$AGENT_USER")"
-  AGENT_RUNTIME="/run/user/$AGENT_UID"
-  run_sudo loginctl enable-linger "$AGENT_USER"
-
-  while [[ ! -d "$AGENT_RUNTIME" ]] && (( tries < 20 )); do
-    sleep 0.5
-    tries=$((tries + 1))
-  done
-
-  if [[ ! -d "$AGENT_RUNTIME" ]]; then
-    err "$AGENT_RUNTIME n'existe pas après enable-linger. Arrêt."
-    exit 1
-  fi
-}
-
-step_apply_wayland_acl() {
-  if [[ "${WAYLAND_AVAILABLE:-0}" -eq 1 ]]; then
-    run_sudo setfacl -m "u:$AGENT_USER:x,m::x" "$XDG_RUNTIME_DIR"
-    run_sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$WAYLAND_SOCKET"
-  else
-    info "Étape ignorée : ACL Wayland (Pas de session Wayland active)."
-  fi
-}
-
-step_create_distrobox() {
-  if run_as_agent distrobox list 2>/dev/null | grep -qE "(^|[[:space:]])$BOX_NAME($|[[:space:]])"; then
-    if [[ "$RECREATE_BOX" -eq 1 ]]; then
-      run_as_agent distrobox rm "$BOX_NAME"
-    else
-      info "Le Distrobox $BOX_NAME existe déjà. Création ignorée."
-      return 0
-    fi
-  fi
-
-  if [[ "${WAYLAND_AVAILABLE:-0}" -eq 1 ]]; then
-    run_as_agent distrobox create --yes --name "$BOX_NAME" \
-      --image "$BOX_IMAGE" \
-      --volume "$SHARED_DIR:/Projets:rw" \
-      --volume "$WAYLAND_SOCKET:$AGENT_RUNTIME/$WAYLAND_ALIAS"
-  else
-    run_as_agent distrobox create --yes --name "$BOX_NAME" \
-      --image "$BOX_IMAGE" \
-      --volume "$SHARED_DIR:/Projets:rw"
-  fi
+step_create_distrobox_noninteractive() {
+  setup_create_distrobox "$RECREATE_BOX"
 }
 
 main() {
@@ -228,7 +153,7 @@ main() {
 
   run_step "$APPLY_WAYLAND_ACL" "ACL Wayland" step_apply_wayland_acl
   write_config_file
-  run_step "$CREATE_DISTROBOX" "Création du Distrobox" step_create_distrobox
+  run_step "$CREATE_DISTROBOX" "Création du Distrobox" step_create_distrobox_noninteractive
   run_step "$INSTALL_LAUNCHERS" "Installation des lanceurs" write_launchers
 
   info "Configuration non interactive terminée."

@@ -10,115 +10,19 @@ source "$SCRIPT_DIR/lib-agent-ia-env.sh"
 _AGENT_IA_WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$_AGENT_IA_WORK_DIR"' EXIT
 
-wait_for_agent_runtime() {
-  local tries=0
-
-  run_sudo loginctl enable-linger "$AGENT_USER"
-
-  while [[ ! -d "$AGENT_RUNTIME" ]] && (( tries < 20 )); do
-    sleep 0.5
-    tries=$((tries + 1))
-  done
-
-  if [[ ! -d "$AGENT_RUNTIME" ]]; then
-    err "$AGENT_RUNTIME n'existe pas après enable-linger. Arrêt : le process validé a besoin de ce runtime réel."
-    exit 1
-  fi
-}
-
-ensure_agent_subids() {
-  local start end
-
-  if grep -q "^$AGENT_USER:" /etc/subuid && grep -q "^$AGENT_USER:" /etc/subgid; then
-    info "Entrées SubUID/SubGID déjà présentes pour $AGENT_USER."
-    return 0
-  fi
-
-  run_sudo sed -i "/^$AGENT_USER:/d" /etc/subuid
-  run_sudo sed -i "/^$AGENT_USER:/d" /etc/subgid
-  start="$(pick_free_subid_start)"
-  end=$((start + 65535))
-  run_sudo usermod --add-subuids "$start-$end" --add-subgids "$start-$end" "$AGENT_USER"
-}
-
-step_install_host_packages() {
-  if ! command_exists pacman; then
-    err "pacman introuvable. Ce script est prévu pour Arch Linux."
-    exit 1
-  fi
-  run_sudo pacman -S --needed podman distrobox acl fuse-overlayfs slirp4netns passt
-}
-
-step_ensure_agent_user() {
-  if id "$AGENT_USER" >/dev/null 2>&1; then
-    info "L'utilisateur $AGENT_USER existe déjà."
-  else
-    run_sudo useradd -m -s /bin/bash "$AGENT_USER"
-    run_sudo passwd -l "$AGENT_USER" || true
-  fi
-}
-
-step_setup_shared_dir() {
-  if getent group "$SHARED_GROUP" >/dev/null 2>&1; then
-    info "Le groupe $SHARED_GROUP existe déjà."
-  else
-    run_sudo groupadd "$SHARED_GROUP"
-  fi
-
-  run_sudo usermod -aG "$SHARED_GROUP" "$MAIN_USER"
-  run_sudo usermod -aG "$SHARED_GROUP" "$AGENT_USER"
-  run_sudo mkdir -p "$SHARED_DIR"
-  run_sudo chown root:"$SHARED_GROUP" "$SHARED_DIR"
-  run_sudo chmod 2770 "$SHARED_DIR"
-  run_sudo setfacl -m "g:$SHARED_GROUP:rwx" "$SHARED_DIR"
-  run_sudo setfacl -d -m "g:$SHARED_GROUP:rwx" "$SHARED_DIR"
-  run_sudo setfacl -d -m "m::rwx" "$SHARED_DIR"
-}
-
-step_protect_main_home() {
-  run_sudo chmod 700 "/home/$MAIN_USER"
-  if sudo -H -u "$AGENT_USER" ls "/home/$MAIN_USER" >/dev/null 2>&1; then
-    err "$AGENT_USER peut encore lire /home/$MAIN_USER après chmod 700."
-    exit 1
-  fi
-}
-
-step_apply_wayland_acl() {
-  if [[ "${WAYLAND_AVAILABLE:-0}" -eq 1 ]]; then
-    run_sudo setfacl -m "u:$AGENT_USER:x,m::x" "$XDG_RUNTIME_DIR"
-    run_sudo setfacl -m "u:$AGENT_USER:rw,m::rwx" "$WAYLAND_SOCKET"
-  else
-    info "Étape ignorée : ACL Wayland (Pas de session Wayland active)."
-  fi
-}
-
-step_prepare_agent_runtime() {
-  AGENT_UID="$(id -u "$AGENT_USER")"
-  AGENT_RUNTIME="/run/user/$AGENT_UID"
-  wait_for_agent_runtime
-}
-
-step_create_distrobox() {
+step_create_distrobox_interactive() {
   if run_as_agent distrobox list 2>/dev/null | grep -qE "(^|[[:space:]])$BOX_NAME($|[[:space:]])"; then
     warn "Le Distrobox $BOX_NAME existe déjà."
     if ask_yes_no "Le supprimer et le recréer ?" "y"; then
-      run_as_agent distrobox rm "$BOX_NAME"
+      setup_create_distrobox 1
     else
       return 0
     fi
-  fi
-
-  if [[ "${WAYLAND_AVAILABLE:-0}" -eq 1 ]]; then
-    run_as_agent distrobox create --name "$BOX_NAME" \
-      --image "$BOX_IMAGE" \
-      --volume "$SHARED_DIR:/Projets:rw" \
-      --volume "$WAYLAND_SOCKET:$AGENT_RUNTIME/$WAYLAND_ALIAS"
   else
-    run_as_agent distrobox create --name "$BOX_NAME" \
-      --image "$BOX_IMAGE" \
-      --volume "$SHARED_DIR:/Projets:rw"
+    setup_create_distrobox 0
   fi
 }
+
 
 main() {
   require_not_root
@@ -208,10 +112,10 @@ main() {
   write_config_file
 
   if confirm_step "8. Création du Distrobox" "Crée $BOX_NAME comme $AGENT_USER avec $SHARED_DIR monté dans /Projets et $WAYLAND_SOCKET monté dans $AGENT_RUNTIME/$WAYLAND_ALIAS."; then
-    step_create_distrobox
+    step_create_distrobox_interactive
   fi
 
-  if confirm_step "9. Lanceurs" "Installe agent-ia-enter, agent-shell, agent-run, ai et agent-stop."; then
+  if confirm_step "9. Lanceurs" "Installe agent-ia-enter, agent-shell, agent-run, ai, agent-fix-perms et agent-stop."; then
     write_launchers
   fi
 
@@ -224,6 +128,8 @@ Commandes utiles :
   agent-shell
   agent-run <commande>
   ai <commande>
+  ai --fix-perms
+  agent-fix-perms
   agent-stop
 
 Dans le Distrobox :

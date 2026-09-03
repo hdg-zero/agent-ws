@@ -57,7 +57,7 @@ EOF
     fi
   fi
 
-  if ask_yes_no "Supprimer les lanceurs /usr/local/bin/agent-ia-enter, /usr/local/bin/agent-shell, /usr/local/bin/agent-run, /usr/local/bin/ai et /usr/local/bin/agent-stop ?" "y"; then
+  if ask_yes_no "Supprimer les lanceurs /usr/local/bin/agent-ia-enter, /usr/local/bin/agent-shell, /usr/local/bin/agent-run, /usr/local/bin/ai, /usr/local/bin/agent-fix-perms et /usr/local/bin/agent-stop ?" "y"; then
     step_remove_launchers
   fi
 
@@ -86,12 +86,12 @@ EOF
   fi
 
   if id "$AGENT_USER" >/dev/null 2>&1; then
-    if ask_yes_no "Arrêter les sessions et processus de $AGENT_USER ?" "y"; then
-      step_terminate_agent_user
-    fi
-
     if ask_yes_no "Désactiver le linger systemd pour $AGENT_USER ?" "y"; then
       step_disable_linger
+    fi
+
+    if ask_yes_no "Arrêter les sessions et processus de $AGENT_USER ?" "y"; then
+      step_terminate_agent_user
     fi
 
     if ask_yes_no "Supprimer l'utilisateur $AGENT_USER et son home /home/$AGENT_USER ?" "n"; then
@@ -121,7 +121,7 @@ EOF
   getent passwd $AGENT_USER
   getent group $SHARED_GROUP
   ls -ld $SHARED_DIR
-  ls -l /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai /usr/local/bin/agent-stop
+  ls -l /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai /usr/local/bin/agent-fix-perms /usr/local/bin/agent-stop
 
 Les paquets hôte podman, distrobox et acl ne sont pas désinstallés automatiquement, car ils peuvent être utilisés par autre chose.
 EOF

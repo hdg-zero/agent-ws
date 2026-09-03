@@ -167,16 +167,6 @@ main() {
   run_enabled_step "$REMOVE_CONFIG" "Suppression du fichier de configuration" remove_config
   run_enabled_step "$REMOVE_SHARED_DIR" "Suppression du dossier partagé" remove_shared_dir
 
-  if [[ "$TERMINATE_AGENT_USER" -eq 1 ]]; then
-    if [[ -n "${AGENT_USER:-}" ]] && id "$AGENT_USER" >/dev/null 2>&1; then
-      run_enabled_step 1 "Arrêt des sessions et processus de l'utilisateur IA" terminate_agent_user
-    else
-      info "Étape ignorée : Arrêt de l'utilisateur IA (introuvable)"
-    fi
-  else
-    info "Étape ignorée : Arrêt de l'utilisateur IA"
-  fi
-
   if [[ "$DISABLE_LINGER" -eq 1 ]]; then
     if [[ -n "${AGENT_USER:-}" ]]; then
       run_enabled_step 1 "Désactivation du linger systemd" disable_linger
@@ -185,6 +175,16 @@ main() {
     fi
   else
     info "Étape ignorée : Désactivation du linger systemd"
+  fi
+
+  if [[ "$TERMINATE_AGENT_USER" -eq 1 ]]; then
+    if [[ -n "${AGENT_USER:-}" ]] && id "$AGENT_USER" >/dev/null 2>&1; then
+      run_enabled_step 1 "Arrêt des sessions et processus de l'utilisateur IA" terminate_agent_user
+    else
+      info "Étape ignorée : Arrêt de l'utilisateur IA (introuvable)"
+    fi
+  else
+    info "Étape ignorée : Arrêt de l'utilisateur IA"
   fi
 
   if [[ "$REMOVE_AGENT_USER" -eq 1 ]]; then
