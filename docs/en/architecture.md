@@ -121,11 +121,11 @@ The shared group allows both users to write to the same project space. The scrip
 ```bash
 chown root:iawork /srv/ia-projets
 chmod 2770 /srv/ia-projets
-setfacl -m g:iawork:rwx /srv/ia-projets
-setfacl -d -m g:iawork:rwx /srv/ia-projets
+setfacl -m g:iawork:rwx,m::rwx /srv/ia-projets
+setfacl -d -m g:iawork:rwx,m::rwx /srv/ia-projets
 ```
 
-The `setgid` bit guarantees group inheritance on new files.
+The `setgid` bit guarantees group inheritance on new files, and applying `umask 0002` preserves the effective write mask (`rw-`) for the shared group.
 
 ### Rootless Podman
 

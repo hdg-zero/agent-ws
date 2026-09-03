@@ -11,8 +11,9 @@ agent-ia-enter
 Ce lanceur :
 
 - recharge la configuration depuis `/etc/agent-ia-env.conf` ;
-- vérifie que tu es bien dans une session Wayland ;
-- réapplique les ACL nécessaires sur le socket courant ;
+- détecte automatiquement si Wayland est disponible (session graphique) ou bascule en mode CLI/headless ;
+- réapplique les ACL nécessaires sur le socket courant en session Wayland ;
+- applique l'umask `0002` pour garantir les droits d'écriture de groupe sur les nouveaux fichiers ;
 - entre dans le Distrobox en tant qu'utilisateur IA.
 
 ### Ouvrir un terminal graphique comme utilisateur IA
@@ -29,19 +30,39 @@ Le script ouvre le terminal graphique préféré (configuré ou détecté automa
 agent-run <commande> [arguments...]
 ```
 
-Le raccourci suivant est aussi installé :
-
-```bash
-ai <commande> [arguments...]
-```
-
-`agent-run` lance la commande sur l'hôte avec l'identité de `agent`. Il utilise `/run/user/<uid-agent>` comme `XDG_RUNTIME_DIR` pour que les sockets IPC des applications comme VS Code soient créés côté `agent`, et passe le socket Wayland principal en chemin absolu. Il force aussi les backends Wayland (`ELECTRON_OZONE_PLATFORM_HINT`, `MOZ_ENABLE_WAYLAND`, `GDK_BACKEND`, `QT_QPA_PLATFORM`). Il démarre depuis `/home/agent` pour ne pas hériter d'un répertoire courant inaccessible comme `/home/hdg`.
+`agent-run` lance la commande sur l'hôte avec l'identité de `agent` (avec umask `0002`). En session Wayland, il transmet le socket Wayland principal et force les backends Wayland (`ELECTRON_OZONE_PLATFORM_HINT`, `MOZ_ENABLE_WAYLAND`, `GDK_BACKEND`, `QT_QPA_PLATFORM`). En mode console ou sans tête, il s'exécute directement en mode CLI. Il utilise `/run/user/<uid-agent>` comme `XDG_RUNTIME_DIR` pour que les sockets IPC soient créés côté `agent`.
 
 Exemple :
 
 ```bash
-ai foot --working-directory=/home/agent
+agent-run foot --working-directory=/home/agent
 ```
+
+### Exécuter rapidement dans le conteneur Distrobox (`ai`)
+
+Le raccourci `ai` pilote l'environnement Distrobox directement :
+
+```bash
+# Ouvrir un shell interactif dans le conteneur
+ai
+
+# Exécuter une commande dans le conteneur
+ai <commande> [arguments...]
+
+# Lancer une commande graphique ou longue en arrière-plan (détachée)
+ai --bg <commande> [arguments...]
+
+# Restaurer les droits d'écriture partagés
+ai --fix-perms
+```
+
+### Restaurer les droits d'écriture du dossier partagé
+
+```bash
+agent-fix-perms
+```
+
+Si des programmes ou des outils tiers créent des fichiers avec un masque restrictif, cette commande réapplique instantanément le bit `setgid` (`2770`), les droits `g+rwX` et les ACLs par défaut sur `/srv/ia-projets`.
 
 ### Arrêter le conteneur et la session IA
 
@@ -59,6 +80,7 @@ Options disponibles :
 
 - `agent-stop --box-only` : arrête uniquement le conteneur Distrobox sans fermer la session utilisateur hôte ;
 - `agent-stop --session-only` : ferme uniquement la session systemd et les processus résiduels sans appeler l'arrêt explicite de Distrobox ;
+- `agent-stop --fix-perms` : répare les permissions d'écriture du dossier partagé avant arrêt ;
 - `agent-stop --help` : affiche l'aide.
 
 ## Répertoire de travail recommandé

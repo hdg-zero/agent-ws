@@ -121,11 +121,11 @@ Le groupe partagé permet aux deux utilisateurs d'écrire dans le même espace p
 ```bash
 chown root:iawork /srv/ia-projets
 chmod 2770 /srv/ia-projets
-setfacl -m g:iawork:rwx /srv/ia-projets
-setfacl -d -m g:iawork:rwx /srv/ia-projets
+setfacl -m g:iawork:rwx,m::rwx /srv/ia-projets
+setfacl -d -m g:iawork:rwx,m::rwx /srv/ia-projets
 ```
 
-Le bit `setgid` garantit l'héritage du groupe sur les nouveaux fichiers.
+Le bit `setgid` garantit l'héritage du groupe sur les nouveaux fichiers, et l'application d'un `umask 0002` préserve le masque effectif d'écriture (`rw-`) pour le groupe partagé.
 
 ### Podman rootless
 

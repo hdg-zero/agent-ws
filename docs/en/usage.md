@@ -11,8 +11,9 @@ agent-ia-enter
 This launcher:
 
 - reloads configuration from `/etc/agent-ia-env.conf`;
-- verifies that you are in a Wayland session;
-- reapplies required ACLs on the active Wayland socket;
+- automatically detects whether Wayland is available (graphical session) or switches to CLI/headless mode;
+- reapplies required ACLs on the active Wayland socket in a Wayland session;
+- applies umask `0002` to preserve group write permissions on newly created files;
 - enters the Distrobox as the AI user.
 
 ### Open a graphical terminal as the AI user
@@ -29,19 +30,39 @@ The script opens the preferred graphical terminal (configured or automatically d
 agent-run <command> [arguments...]
 ```
 
-The following shortcut is also installed:
-
-```bash
-ai <command> [arguments...]
-```
-
-`agent-run` launches the command on the host under the identity of `agent`. It uses `/run/user/<uid-agent>` as `XDG_RUNTIME_DIR` so IPC sockets for applications such as VS Code are created on the `agent` side, while passing the main Wayland socket as an absolute path. It also forces Wayland backends (`ELECTRON_OZONE_PLATFORM_HINT`, `MOZ_ENABLE_WAYLAND`, `GDK_BACKEND`, `QT_QPA_PLATFORM`). It starts from `/home/agent` to avoid inheriting an inaccessible working directory such as `/home/hdg`.
+`agent-run` launches a command on the host under the identity of `agent` (with umask `0002`). In a Wayland session, it passes the main Wayland socket and forces Wayland backends (`ELECTRON_OZONE_PLATFORM_HINT`, `MOZ_ENABLE_WAYLAND`, `GDK_BACKEND`, `QT_QPA_PLATFORM`). In headless or terminal mode, it runs directly in CLI mode. It uses `/run/user/<uid-agent>` as `XDG_RUNTIME_DIR` so IPC sockets are created on the `agent` side.
 
 Example:
 
 ```bash
-ai foot --working-directory=/home/agent
+agent-run foot --working-directory=/home/agent
 ```
+
+### Quick execution inside the Distrobox container (`ai`)
+
+The `ai` shortcut controls the Distrobox environment directly:
+
+```bash
+# Open an interactive shell inside the container
+ai
+
+# Run a command inside the container
+ai <command> [arguments...]
+
+# Run a graphical or long-running command in background (detached)
+ai --bg <command> [arguments...]
+
+# Restore shared group write permissions
+ai --fix-perms
+```
+
+### Restore shared folder write permissions
+
+```bash
+agent-fix-perms
+```
+
+If third-party programs or tools create files with restrictive permissions, this command instantly reapplies the `setgid` bit (`2770`), `g+rwX` permissions, and default POSIX ACLs on `/srv/ia-projets`.
 
 ### Stop the container and AI session
 
@@ -59,6 +80,7 @@ Available options:
 
 - `agent-stop --box-only`: only stops the Distrobox container without terminating the host user session;
 - `agent-stop --session-only`: only terminates the systemd session and remaining processes without explicitly calling Distrobox stop;
+- `agent-stop --fix-perms`: restores shared directory write permissions before shutting down;
 - `agent-stop --help`: displays help.
 
 ## Recommended working directory
