@@ -211,7 +211,7 @@ main() {
     step_create_distrobox
   fi
 
-  if confirm_step "9. Lanceurs" "Installe agent-ia-enter, agent-shell, agent-run et ai."; then
+  if confirm_step "9. Lanceurs" "Installe agent-ia-enter, agent-shell, agent-run, ai et agent-stop."; then
     write_launchers
   fi
 
@@ -224,6 +224,7 @@ Commandes utiles :
   agent-shell
   agent-run <commande>
   ai <commande>
+  agent-stop
 
 Dans le Distrobox :
 
