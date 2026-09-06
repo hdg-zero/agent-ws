@@ -86,30 +86,53 @@ Ensuite, retire les ACL non voulues si nécessaire.
 
 ## L'utilisateur principal ne peut pas modifier les fichiers créés par l'utilisateur IA
 
-### Cause probable
+### Causes probables
 
-Le groupe partagé, le `setgid` ou les ACL par défaut du dossier partagé sont incorrects.
+1. **Masque POSIX ACL et umask restrictif :** Lorsqu'un programme (compilateur, outil IA, éditeur) crée un fichier avec un umask par défaut de `0022` (mode `0644`), le noyau Linux calcule le masque d'ACL (`mask::`) du fichier en le limitant aux bits de groupe (`r--`). Cela réduit les droits effectifs du groupe partagé à `#effective:r--`, interdisant l'écriture aux autres membres du groupe `iawork`.
+2. Le groupe partagé, le `setgid` ou les ACL par défaut du dossier partagé ont sauté ou n'ont pas été appliqués récursivement.
 
 ### Vérification
 
 ```bash
 ls -ld /srv/ia-projets
 getfacl /srv/ia-projets
-id <main-user>
-id agent
+getfacl /srv/ia-projets/<fichier-pose-probleme>
 ```
 
-### Correction
+Si `getfacl` affiche `group:iawork:rwx #effective:r--`, le masque d'ACL bride l'écriture.
+
+### Correction automatique rapide
+
+Lancez la commande de réparation fournie :
 
 ```bash
-sudo chown root:iawork /srv/ia-projets
-sudo chmod 2770 /srv/ia-projets
-sudo setfacl -m g:iawork:rwx /srv/ia-projets
-sudo setfacl -d -m g:iawork:rwx /srv/ia-projets
-sudo setfacl -d -m m::rwx /srv/ia-projets
+agent-fix-perms
+# ou via le raccourci ai :
+ai --fix-perms
 ```
 
-Si le groupe vient d'être ajouté à un utilisateur, une reconnexion peut être nécessaire.
+### Correction manuelle et pérenne
+
+1. **Restaurer récursivement les droits et ACLs :**
+   ```bash
+   sudo chown -R root:iawork /srv/ia-projets
+   sudo chmod 2770 /srv/ia-projets
+   sudo find /srv/ia-projets -type d -exec chmod 2770 {} +
+   sudo chmod -R g+rwX /srv/ia-projets
+   sudo setfacl -R -m g:iawork:rwx,m::rwx /srv/ia-projets
+   sudo setfacl -R -d -m g:iawork:rwx,m::rwx /srv/ia-projets
+   ```
+
+2. **Vérifier l'umask de l'utilisateur IA :**
+   Dans `/home/agent/.bashrc` et `/home/agent/.profile`, vérifiez que la directive suivante est présente :
+   ```bash
+   umask 0002
+   ```
+
+3. **Configurer Git pour le partage de groupe :**
+   ```bash
+   sudo -u agent git config --global core.sharedRepository group
+   ```
 
 ## Le terminal `agent-shell` ne s'ouvre pas
 
@@ -146,10 +169,10 @@ Supprime puis recrée le conteneur avec le script d'installation, surtout si :
 Si les essais ont laissé trop d'état intermédiaire, le plus fiable est de supprimer entièrement l'utilisateur IA puis de recréer l'environnement.
 
 ```bash
+sudo loginctl disable-linger agent 2>/dev/null || true
 sudo loginctl terminate-user agent 2>/dev/null || true
 sudo pkill -u agent 2>/dev/null || true
-sudo rm -f /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai /usr/local/bin/agent-stop /etc/agent-ia-env.conf
-sudo loginctl disable-linger agent 2>/dev/null || true
+sudo rm -f /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai /usr/local/bin/agent-fix-perms /usr/local/bin/agent-stop /etc/agent-ia-env.conf
 sudo userdel -r agent
 sudo rm -rf /home/agent /run/user/1001
 sudo sed -i '/^agent:/d' /etc/subuid

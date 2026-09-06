@@ -1,0 +1,10 @@
+# Logs
+*.log
+
+# Fichiers temporaires
+tmp.*
+*.tmp
+
+# Dossiers d'outillage / agents
+.agents/
+.codex/

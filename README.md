@@ -50,7 +50,8 @@ Après installation, on obtient :
 - un lanceur `agent-ia-enter` pour entrer dans le conteneur ;
 - un lanceur `agent-shell` pour ouvrir un terminal graphique en tant que compte IA ;
 - un lanceur `agent-run` pour exécuter une commande hôte comme compte IA ;
-- un raccourci `ai` équivalent à `agent-run` ;
+- un raccourci `ai` pour exécuter rapidement une commande ou ouvrir un shell dans le Distrobox (avec options `--bg` et `--fix-perms`) ;
+- un lanceur `agent-fix-perms` pour restaurer récursivement les droits d'écriture du groupe partagé ;
 - un lanceur `agent-stop` pour arrêter le conteneur Distrobox et la session de l'utilisateur IA ;
 - une séparation raisonnablement forte entre `/home/<utilisateur-principal>` et l'environnement IA.
 
@@ -117,6 +118,7 @@ Si le niveau de menace est élevé, utilise une VM dédiée ou une machine sépa
 - [Architecture](docs/fr/architecture.md)
 - [Installation](docs/fr/installation.md)
 - [Utilisation quotidienne](docs/fr/utilisation.md)
+- [Mise à jour](docs/fr/mise-a-jour.md)
 - [Dépannage](docs/fr/depannage.md)
 
 ## English summary
@@ -133,7 +135,8 @@ Recommended reading:
 2. [Architecture](docs/en/architecture.md)
 3. [Installation](docs/en/installation.md)
 4. [Usage](docs/en/usage.md)
-5. [Troubleshooting](docs/en/troubleshooting.md)
+5. [Updating](docs/en/updating.md)
+6. [Troubleshooting](docs/en/troubleshooting.md)
 
 ## References
 

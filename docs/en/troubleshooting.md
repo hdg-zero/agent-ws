@@ -86,30 +86,53 @@ Then remove any unexpected ACLs if needed.
 
 ## The main user cannot edit files created by the AI user
 
-### Likely cause
+### Likely causes
 
-The shared group, `setgid`, or default ACLs on the shared directory are wrong.
+1. **POSIX ACL mask and restrictive umask:** When an application (compiler, AI tool, editor) creates a file with a default umask of `0022` (mode `0644`), the Linux kernel sets the file's ACL mask (`mask::`) to the group permission bits (`r--`). This restricts the effective group permissions to `#effective:r--`, preventing other members of the `iawork` group from writing to the file.
+2. The shared group, `setgid`, or default ACLs on the shared directory were removed or not applied recursively.
 
 ### Check
 
 ```bash
 ls -ld /srv/ia-projets
 getfacl /srv/ia-projets
-id <main-user>
-id agent
+getfacl /srv/ia-projets/<problematic-file>
 ```
 
-### Fix
+If `getfacl` displays `group:iawork:rwx #effective:r--`, the ACL mask is restricting write access.
+
+### Quick automated fix
+
+Run the provided repair command:
 
 ```bash
-sudo chown root:iawork /srv/ia-projets
-sudo chmod 2770 /srv/ia-projets
-sudo setfacl -m g:iawork:rwx /srv/ia-projets
-sudo setfacl -d -m g:iawork:rwx /srv/ia-projets
-sudo setfacl -d -m m::rwx /srv/ia-projets
+agent-fix-perms
+# or via the ai shortcut:
+ai --fix-perms
 ```
 
-If the group was just added to a user, a re-login may be required.
+### Manual permanent fix
+
+1. **Recursively restore permissions and ACLs:**
+   ```bash
+   sudo chown -R root:iawork /srv/ia-projets
+   sudo chmod 2770 /srv/ia-projets
+   sudo find /srv/ia-projets -type d -exec chmod 2770 {} +
+   sudo chmod -R g+rwX /srv/ia-projets
+   sudo setfacl -R -m g:iawork:rwx,m::rwx /srv/ia-projets
+   sudo setfacl -R -d -m g:iawork:rwx,m::rwx /srv/ia-projets
+   ```
+
+2. **Verify the AI user's umask:**
+   In `/home/agent/.bashrc` and `/home/agent/.profile`, make sure the following line is present:
+   ```bash
+   umask 0002
+   ```
+
+3. **Configure Git for group sharing:**
+   ```bash
+   sudo -u agent git config --global core.sharedRepository group
+   ```
 
 ## `agent-shell` does not open
 
@@ -146,10 +169,10 @@ Remove and recreate the container with the setup script, especially if:
 If trials have left too much intermediate state, the most reliable way is to delete the AI user completely and recreate the environment.
 
 ```bash
+sudo loginctl disable-linger agent 2>/dev/null || true
 sudo loginctl terminate-user agent 2>/dev/null || true
 sudo pkill -u agent 2>/dev/null || true
-sudo rm -f /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai /usr/local/bin/agent-stop /etc/agent-ia-env.conf
-sudo loginctl disable-linger agent 2>/dev/null || true
+sudo rm -f /usr/local/bin/agent-ia-enter /usr/local/bin/agent-shell /usr/local/bin/agent-run /usr/local/bin/ai /usr/local/bin/agent-fix-perms /usr/local/bin/agent-stop /etc/agent-ia-env.conf
 sudo userdel -r agent
 sudo rm -rf /home/agent /run/user/1001
 sudo sed -i '/^agent:/d' /etc/subuid

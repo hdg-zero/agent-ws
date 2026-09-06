@@ -7,6 +7,7 @@ English documentation for the isolated AI environment. The French version remain
 - [Architecture](architecture.md)
 - [Installation](installation.md)
 - [Daily usage](usage.md)
+- [Updating](updating.md)
 - [Troubleshooting](troubleshooting.md)
 
 ## Goal

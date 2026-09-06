@@ -7,6 +7,7 @@ Le français est la langue de référence de cette documentation.
 - [Architecture](architecture.md)
 - [Installation](installation.md)
 - [Utilisation quotidienne](utilisation.md)
+- [Mise à jour](mise-a-jour.md)
 - [Dépannage](depannage.md)
 
 ## Objectif
