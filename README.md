@@ -1,16 +1,22 @@
-# Agent-WS
+<div align="center">
 
-```text
-
+<pre>
 ███████████▀████████████████████████████████████████████
 ██▀▄─██─▄▄▄▄█▄─▄▄─█▄─▀█▄─▄█─▄─▄─█▀▀▀▀▀██▄─█▀▀▀█─▄█─▄▄▄▄█
 ██─▀─██─██▄─██─▄█▀██─█▄▀─████─███████████─█─█─█─██▄▄▄▄─█
 ▀▄▄▀▄▄▀▄▄▄▄▄▀▄▄▄▄▄▀▄▄▄▀▀▄▄▀▀▄▄▄▀▀▀▀▀▀▀▀▀▀▄▄▄▀▄▄▄▀▀▄▄▄▄▄▀
+</pre>
 
-```
+  <img src="assets/logo.svg" alt="Agent-WS Logo" width="480" />
 
-Architecture IA isolée avec Distrobox, Podman et utilisateur dédié.
-Documentation principale en français. English documentation is available below and in [`docs/en/`](docs/en/README.md).
+  <p>
+    <strong>Architecture IA isolée avec Distrobox, Podman et utilisateur dédié.</strong><br />
+    Documentation principale en français. English documentation is available below and in <a href="docs/en/README.md"><code>docs/en/</code></a>.
+  </p>
+
+</div>
+
+---
 
 ## Vue d'ensemble
 

@@ -8,3 +8,7 @@ tmp.*
 # Dossiers d'outillage / agents
 .agents/
 .codex/
+
+# Python
+__pycache__/
+*.pyc
