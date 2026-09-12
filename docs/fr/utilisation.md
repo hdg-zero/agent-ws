@@ -83,6 +83,8 @@ Options disponibles :
 - `agent-stop --fix-perms` : répare les permissions d'écriture du dossier partagé avant arrêt ;
 - `agent-stop --help` : affiche l'aide.
 
+> **Note :** Après un arrêt via `agent-stop`, l'environnement peut être relancé immédiatement à tout moment via `ai`, `agent-ia-enter`, `agent-shell` ou `agent-run`. Les lanceurs réactivent et restaurent automatiquement la session systemd et le répertoire runtime `/run/user/<uid>`.
+
 ## Répertoire de travail recommandé
 
 Dans le conteneur, travaille dans :

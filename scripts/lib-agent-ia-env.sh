@@ -344,6 +344,9 @@ setup_prepare_agent_runtime() {
   AGENT_UID="$(id -u "$AGENT_USER")"
   AGENT_RUNTIME="/run/user/$AGENT_UID"
   run_sudo loginctl enable-linger "$AGENT_USER"
+  if [[ -d /run/systemd/system ]]; then
+    run_sudo systemctl start "user@$AGENT_UID.service" 2>/dev/null || true
+  fi
 
   while [[ ! -d "$AGENT_RUNTIME" ]] && (( tries < 20 )); do
     sleep 0.5
@@ -431,9 +434,26 @@ fi
 source "$CONFIG_FILE"
 
 : "${AGENT_USER:?AGENT_USER manquant dans $CONFIG_FILE}"
-: "${AGENT_RUNTIME:?AGENT_RUNTIME manquant dans $CONFIG_FILE}"
+AGENT_UID="${AGENT_UID:-$(id -u "$AGENT_USER" 2>/dev/null || echo "1001")}"
+AGENT_RUNTIME="${AGENT_RUNTIME:-/run/user/$AGENT_UID}"
 : "${BOX_NAME:?BOX_NAME manquant dans $CONFIG_FILE}"
 : "${WAYLAND_ALIAS:=wayland-agent}"
+
+# S'assurer que le runtime utilisateur existe et est actif (recréé si arrêté par agent-stop)
+if [[ ! -d "$AGENT_RUNTIME" ]] || ( [[ -d /run/systemd/system ]] && ! systemctl is-active --quiet "user@$AGENT_UID.service" ); then
+  if [[ -d /run/systemd/system ]]; then
+    sudo loginctl enable-linger "$AGENT_USER" 2>/dev/null || true
+    sudo systemctl start "user@$AGENT_UID.service" 2>/dev/null || true
+    _tries=0
+    while [[ ! -d "$AGENT_RUNTIME" ]] && (( _tries < 30 )); do
+      sleep 0.1
+      _tries=$((_tries + 1))
+    done
+  fi
+  if [[ ! -d "$AGENT_RUNTIME" ]]; then
+    sudo install -d -m 0700 -o "$AGENT_USER" -g "$AGENT_USER" "$AGENT_RUNTIME" 2>/dev/null || true
+  fi
+fi
 
 WAYLAND_SOCKET=""
 if [[ -n "${XDG_RUNTIME_DIR:-}" && -n "${WAYLAND_DISPLAY:-}" ]]; then
@@ -514,7 +534,24 @@ fi
 source "$CONFIG_FILE"
 
 : "${AGENT_USER:?AGENT_USER manquant dans $CONFIG_FILE}"
-: "${AGENT_RUNTIME:?AGENT_RUNTIME manquant dans $CONFIG_FILE}"
+AGENT_UID="${AGENT_UID:-$(id -u "$AGENT_USER" 2>/dev/null || echo "1001")}"
+AGENT_RUNTIME="${AGENT_RUNTIME:-/run/user/$AGENT_UID}"
+
+# S'assurer que le runtime utilisateur existe et est actif (recréé si arrêté par agent-stop)
+if [[ ! -d "$AGENT_RUNTIME" ]] || ( [[ -d /run/systemd/system ]] && ! systemctl is-active --quiet "user@$AGENT_UID.service" ); then
+  if [[ -d /run/systemd/system ]]; then
+    sudo loginctl enable-linger "$AGENT_USER" 2>/dev/null || true
+    sudo systemctl start "user@$AGENT_UID.service" 2>/dev/null || true
+    _tries=0
+    while [[ ! -d "$AGENT_RUNTIME" ]] && (( _tries < 30 )); do
+      sleep 0.1
+      _tries=$((_tries + 1))
+    done
+  fi
+  if [[ ! -d "$AGENT_RUNTIME" ]]; then
+    sudo install -d -m 0700 -o "$AGENT_USER" -g "$AGENT_USER" "$AGENT_RUNTIME" 2>/dev/null || true
+  fi
+fi
 
 if [[ -z "${XDG_RUNTIME_DIR:-}" || -z "${WAYLAND_DISPLAY:-}" ]]; then
   echo "Ce lanceur requiert une session Wayland active pour ouvrir un terminal graphique." >&2
@@ -630,6 +667,22 @@ fi
 MAIN_UID="$(id -u "$MAIN_USER" 2>/dev/null || id -u)"
 AGENT_UID="$(id -u "$AGENT_USER" 2>/dev/null || echo "1001")"
 AGENT_RUNTIME="${AGENT_RUNTIME:-/run/user/$AGENT_UID}"
+
+# S'assurer que le runtime utilisateur existe et est actif (recréé si arrêté par agent-stop)
+if [[ ! -d "$AGENT_RUNTIME" ]] || ( [[ -d /run/systemd/system ]] && ! systemctl is-active --quiet "user@$AGENT_UID.service" ); then
+  if [[ -d /run/systemd/system ]]; then
+    sudo loginctl enable-linger "$AGENT_USER" 2>/dev/null || true
+    sudo systemctl start "user@$AGENT_UID.service" 2>/dev/null || true
+    _tries=0
+    while [[ ! -d "$AGENT_RUNTIME" ]] && (( _tries < 30 )); do
+      sleep 0.1
+      _tries=$((_tries + 1))
+    done
+  fi
+  if [[ ! -d "$AGENT_RUNTIME" ]]; then
+    sudo install -d -m 0700 -o "$AGENT_USER" -g "$AGENT_USER" "$AGENT_RUNTIME" 2>/dev/null || true
+  fi
+fi
 
 WAYLAND_SOCKET=""
 if [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
@@ -816,8 +869,10 @@ echo "Arrêt de l'environnement IA ($AGENT_USER)..."
 
 if [[ "$SESSION_ONLY" -eq 0 ]]; then
   if command -v distrobox >/dev/null 2>&1; then
-    echo "- Arrêt du conteneur Distrobox '$BOX_NAME'..."
-    sudo -H -u "$AGENT_USER" env XDG_RUNTIME_DIR="$AGENT_RUNTIME" distrobox stop -Y "$BOX_NAME" 2>/dev/null || true
+    if [[ -d "$AGENT_RUNTIME" ]]; then
+      echo "- Arrêt du conteneur Distrobox '$BOX_NAME'..."
+      sudo -H -u "$AGENT_USER" env XDG_RUNTIME_DIR="$AGENT_RUNTIME" distrobox stop -Y "$BOX_NAME" 2>/dev/null || true
+    fi
   fi
 fi
 
@@ -846,7 +901,17 @@ uninstall_prepare_runtime() {
   AGENT_UID="$(id -u "$AGENT_USER")"
   AGENT_RUNTIME="/run/user/$AGENT_UID"
   if [[ ! -d "$AGENT_RUNTIME" ]]; then
-    run_sudo install -d -m 700 -o "$AGENT_USER" -g "$AGENT_USER" "$AGENT_RUNTIME" || true
+    if [[ -d /run/systemd/system ]]; then
+      run_sudo systemctl start "user@$AGENT_UID.service" 2>/dev/null || true
+      local tries=0
+      while [[ ! -d "$AGENT_RUNTIME" ]] && (( tries < 20 )); do
+        sleep 0.1
+        tries=$((tries + 1))
+      done
+    fi
+    if [[ ! -d "$AGENT_RUNTIME" ]]; then
+      run_sudo install -d -m 700 -o "$AGENT_USER" -g "$AGENT_USER" "$AGENT_RUNTIME" || true
+    fi
   fi
 }
 
