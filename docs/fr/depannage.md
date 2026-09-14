@@ -16,6 +16,30 @@ XDG_RUNTIME_DIR=/run/user/<uid-agent>
 
 Le script `setup-agent-ia-env.sh` construit précisément les lanceurs autour de cette contrainte.
 
+## `Failed to obtain podman configuration: lstat /run/user/1001: no such file or directory` (ou `Create it now, out of image...`)
+
+### Cause probable
+
+Après l'utilisation de `agent-stop`, la session de l'utilisateur IA a été clôturée via `loginctl terminate-user`, ce qui a démonté et supprimé le répertoire runtime `/run/user/<uid-agent>`. Lorsque `ai` ou `agent-ia-enter` est relancé, Podman rootless ne trouve plus son runtime et échoue, ce qui pousse Distrobox à croire par erreur que le conteneur n'existe plus.
+
+### Correction immédiate
+
+1. Réponds `n` (ou fais `Ctrl+C`) si Distrobox te demande s'il faut créer une image `fedora-toolbox`.
+2. Relance le service utilisateur systemd pour restaurer le dossier runtime :
+   ```bash
+   sudo systemctl start user@1001.service
+   ```
+   *(Remplace `1001` par l'UID de ton utilisateur IA si différent).*
+3. Relance `ai` ou `agent-ia-enter`.
+
+### Correction pérenne
+
+Mets à jour tes lanceurs vers la version qui restaure automatiquement le runtime :
+
+```bash
+./scripts/setup-agent-ia-env-noninteractive.sh --launchers-only
+```
+
 ## `failed to connect to wayland; no compositor running?`
 
 ### Causes probables

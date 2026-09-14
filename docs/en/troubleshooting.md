@@ -16,6 +16,30 @@ XDG_RUNTIME_DIR=/run/user/<uid-agent>
 
 The `setup-agent-ia-env.sh` script builds the launchers specifically around this constraint.
 
+## `Failed to obtain podman configuration: lstat /run/user/1001: no such file or directory` (or `Create it now, out of image...`)
+
+### Likely cause
+
+After running `agent-stop`, the AI user session was closed via `loginctl terminate-user`, which unmounted and deleted the runtime directory `/run/user/<uid-agent>`. When `ai` or `agent-ia-enter` is subsequently run, rootless Podman cannot find its runtime directory and fails, which tricks Distrobox into assuming the container does not exist.
+
+### Immediate fix
+
+1. Answer `n` (or press `Ctrl+C`) if Distrobox asks whether to create a `fedora-toolbox` image.
+2. Restart the systemd user service to restore the runtime directory:
+   ```bash
+   sudo systemctl start user@1001.service
+   ```
+   *(Replace `1001` with your AI user's UID if different).*
+3. Run `ai` or `agent-ia-enter` again.
+
+### Permanent fix
+
+Update your launchers to the version that automatically restores the runtime directory:
+
+```bash
+./scripts/setup-agent-ia-env-noninteractive.sh --launchers-only
+```
+
 ## `failed to connect to wayland; no compositor running?`
 
 ### Likely causes

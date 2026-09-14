@@ -74,6 +74,18 @@ setfacl -d -m "g::rwx,m::rwx" "$TEST_DIR"
 ) || FAILED=$((FAILED + 1))
 rm -rf "$TEST_DIR"
 
+echo "=== 4. Test de présence du mécanisme de restauration du runtime dans les lanceurs ==="
+# shellcheck disable=SC2016
+assert_success "Restauration du runtime dans setup_prepare_agent_runtime" grep -F -q 'user@$AGENT_UID.service' "$SCRIPT_DIR/../scripts/lib-agent-ia-env.sh"
+# shellcheck disable=SC2016
+OCCURRENCES="$(grep -F -c 'user@$AGENT_UID.service' "$SCRIPT_DIR/../scripts/lib-agent-ia-env.sh" || true)"
+if [[ "$OCCURRENCES" -ge 5 ]]; then
+  echo "✓ Les 5 points de contrôle du runtime sont configurés ($OCCURRENCES détectés)"
+else
+  echo "❌ Points de contrôle du runtime manquants ($OCCURRENCES détectés, attendu au moins 5)" >&2
+  FAILED=$((FAILED + 1))
+fi
+
 if [[ $FAILED -eq 0 ]]; then
   echo "======================================="
   echo "🎉 Tous les tests unitaires ont réussi !"

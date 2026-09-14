@@ -83,6 +83,8 @@ Available options:
 - `agent-stop --fix-perms`: restores shared directory write permissions before shutting down;
 - `agent-stop --help`: displays help.
 
+> **Note:** After stopping via `agent-stop`, the environment can be restarted immediately at any time via `ai`, `agent-ia-enter`, `agent-shell`, or `agent-run`. Launchers automatically reactivate and restore the systemd user session and the runtime directory `/run/user/<uid>`.
+
 ## Recommended working directory
 
 Inside the container, work in:
